@@ -1,5 +1,6 @@
 import { FileType } from '@/types/fileType'
 import * as DocumentPicker from 'expo-document-picker'
+import * as ImagePicker from 'expo-image-picker'
 import * as VideoThumbnails from 'expo-video-thumbnails'
 import { MAX_FILE_SIZE } from './Constants'
 
@@ -10,6 +11,30 @@ export const pickDocuments = async () => {
 		multiple: true,
 	})
 	return result
+}
+
+export const pickImageFromCamera = async () => {
+	const status = await ImagePicker.getCameraPermissionsAsync()
+
+	if (status.status === ImagePicker.PermissionStatus.UNDETERMINED) {
+		const permission = await ImagePicker.requestCameraPermissionsAsync()
+		if (permission.status === ImagePicker.PermissionStatus.DENIED) {
+			throw new Error('Permission to access the camera was denied.')
+		}
+	}
+
+	const result = await ImagePicker.launchCameraAsync()
+
+	if (result.canceled) return null
+
+	const file = result.assets[0]
+
+	return {
+		uri: file.uri,
+		name: file.fileName ?? 'Camera Image',
+		mimeType: file.mimeType ?? 'image/jpeg',
+		size: file.fileSize ?? 0,
+	}
 }
 
 export const validateFiles = async (
