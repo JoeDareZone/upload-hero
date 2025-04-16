@@ -1,3 +1,4 @@
+import { FileType } from '@/types/fileType'
 import * as DocumentPicker from 'expo-document-picker'
 import * as VideoThumbnails from 'expo-video-thumbnails'
 import { MAX_FILE_SIZE } from './Constants'
@@ -15,7 +16,8 @@ export const validateFiles = async (
 	files: DocumentPicker.DocumentPickerAsset[]
 ) => {
 	const errors: string[] = []
-	const validFiles: (DocumentPicker.DocumentPickerAsset & {
+	const validFiles: (FileType & {
+		mimeType?: string
 		thumbnailUri?: string
 	})[] = []
 
@@ -46,7 +48,12 @@ export const validateFiles = async (
 			}
 		}
 
-		validFiles.push({ ...file, thumbnailUri })
+		validFiles.push({
+			uri: thumbnailUri ?? file.uri,
+			name: file.name,
+			mimeType: file.mimeType,
+			size: file.size || 0,
+		})
 	}
 
 	return { errors, validFiles }
