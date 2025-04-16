@@ -1,5 +1,5 @@
 import { FileType } from '@/types/fileType'
-import { MAX_FILES } from '@/utils/Constants'
+import { MAX_FILES } from '@/utils/constants'
 import {
 	pickDocuments,
 	pickImageFromCamera,
@@ -31,7 +31,9 @@ export default function HomeScreen() {
 			if (result.canceled) return
 
 			if (files.length + result.assets.length > MAX_FILES)
-				return handleError(`You can upload a maximum of ${MAX_FILES} files.`)
+				return handleError(
+					`You can upload a maximum of ${MAX_FILES} files.`
+				)
 
 			const { errors: newErrors, validFiles } = await validateFiles(
 				result.assets

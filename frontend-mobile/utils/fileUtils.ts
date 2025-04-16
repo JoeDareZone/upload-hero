@@ -2,7 +2,7 @@ import { FileType } from '@/types/fileType'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import * as VideoThumbnails from 'expo-video-thumbnails'
-import { MAX_FILE_SIZE } from './Constants'
+import { MAX_FILE_SIZE } from './constants'
 
 export const pickDocuments = async () => {
 	const result = await DocumentPicker.getDocumentAsync({
