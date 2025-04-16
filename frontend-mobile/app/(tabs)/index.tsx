@@ -1,80 +1,61 @@
-import { MAX_FILES, MAX_FILE_SIZE } from '@/utils/Constants'
-import * as DocumentPicker from 'expo-document-picker'
-import * as VideoThumbnails from 'expo-video-thumbnails'
+import { MAX_FILES } from '@/utils/Constants'
+import { pickDocuments, validateFiles } from '@/utils/fileutils'
 import { useState } from 'react'
-import { Image, Text, TouchableOpacity, View } from 'react-native'
+import {
+	ActivityIndicator,
+	Image,
+	Text,
+	TouchableOpacity,
+	View,
+} from 'react-native'
 
 export default function HomeScreen() {
-	const [files, setFiles] = useState<
-		(DocumentPicker.DocumentPickerAsset & { thumbnailUri?: string })[]
-	>([])
+	const [files, setFiles] = useState<any[]>([])
 	const [errors, setErrors] = useState<string[]>([])
+	const [isLoading, setIsLoading] = useState(false)
 
 	const pickDocument = async () => {
 		setErrors([])
+		setIsLoading(true)
 
-		let result = await DocumentPicker.getDocumentAsync({
-			type: ['image/*', 'video/*'],
-			copyToCacheDirectory: true,
-			multiple: true,
-		})
+		try {
+			const result = await pickDocuments()
 
-		if (result.canceled) return
+			if (result.canceled) return
 
-		if (result.assets) {
-			if (result.assets.length > MAX_FILES) {
-				setErrors([`You can select up to ${MAX_FILES} files.`])
-				return
-			}
-
-			const newErrors: string[] = []
-			const validFiles: any[] = []
-
-			for (const file of result.assets) {
-				if (
-					!file.mimeType?.startsWith('image/') &&
-					!file.mimeType?.startsWith('video/')
-				) {
-					newErrors.push(`${file.name} is not an image or video.`)
-					continue
+			if (result.assets) {
+				if (result.assets.length > MAX_FILES) {
+					setErrors([`You can select up to ${MAX_FILES} files.`])
+					return
 				}
 
-				if (file.size && file.size > MAX_FILE_SIZE) {
-					newErrors.push(`${file.name} exceeds the 50MB size limit.`)
-					continue
-				}
+				const { errors: newErrors, validFiles } = await validateFiles(
+					result.assets
+				)
 
-				let thumbnailUri = null
-				if (file.mimeType?.startsWith('video/')) {
-					try {
-						const { uri } = await VideoThumbnails.getThumbnailAsync(
-							file.uri,
-							{ time: 1000 }
-						)
-						thumbnailUri = uri
-					} catch (e) {
-						console.warn('Thumbnail generation failed', e)
-					}
-				}
-
-				validFiles.push({ ...file, thumbnailUri })
+				if (newErrors.length) setErrors(newErrors)
+				setFiles(validFiles)
 			}
-
-			if (newErrors.length) {
-				setErrors(newErrors)
-			}
-
-			setFiles(validFiles)
+		} catch (error) {
+			console.error('Error picking documents:', error)
+			setErrors(['Something went wrong while picking files.'])
+		} finally {
+			setIsLoading(false)
 		}
 	}
 
 	return (
 		<View className='flex-1 items-center justify-center p-4'>
 			<TouchableOpacity
-				className='bg-blue-500 p-4 rounded-md mb-4'
+				className='bg-blue-500 p-4 rounded-md mb-4 min-w-32'
 				onPress={pickDocument}
+				disabled={isLoading}
 			>
-				<Text className='text-white text-center'>Pick files</Text>
+				{isLoading ? (
+					<ActivityIndicator size='small' color='#fff' />
+				) : (
+					<Text className='text-white text-center'>Pick files</Text>
+				)}
 			</TouchableOpacity>
 
 			{errors.length > 0 && (
@@ -124,9 +105,11 @@ export default function HomeScreen() {
 								resizeMode='cover'
 							/>
 						) : (
-							<Text className='text-white mt-2'>
-								🎥 Video (thumbnail unavailable)
-							</Text>
+							file.mimeType?.startsWith('video/') && (
+								<Text className='text-white mt-2'>
+									🎥 Video (thumbnail unavailable)
+								</Text>
+							)
 						)}
 					</View>
 				))}
