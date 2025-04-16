@@ -22,7 +22,7 @@ export default function HomeScreen() {
 
 	const handleError = (msg: string) => setErrors([msg])
 
-	const pickDocument = async () => {
+	const handlePickDocuments = async () => {
 		setErrors([])
 		setIsLoading(true)
 		try {
@@ -45,7 +45,7 @@ export default function HomeScreen() {
 		}
 	}
 
-	const pickImage = async () => {
+	const handleTakePhoto = async () => {
 		setErrors([])
 		setIsLoading(true)
 		try {
@@ -91,8 +91,11 @@ export default function HomeScreen() {
 					alignItems: 'center',
 				}}
 			>
-				<ActionButton onPress={pickDocument} label='Pick files' />
-				<ActionButton onPress={pickImage} label='Pick image' />
+				<ActionButton
+					onPress={handlePickDocuments}
+					label='Pick files'
+				/>
+				<ActionButton onPress={handleTakePhoto} label='Pick image' />
 
 				{errors.length > 0 && (
 					<View className='bg-yellow-400 p-2 rounded mb-4'>
