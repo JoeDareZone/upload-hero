@@ -1,6 +1,7 @@
 import { UploadChunk, UploadFile } from '@/types/fileType'
 import { CHUNK_SIZE, MAX_CONCURRENT_UPLOADS } from '@/utils/constants'
 import axios from 'axios'
+import * as FileSystem from 'expo-file-system'
 import { useRef, useState } from 'react'
 
 export const useUploadManager = () => {
@@ -48,12 +49,14 @@ export const useUploadManager = () => {
 		activeUploads.current += 1
 
 		try {
-			const data = await readChunk(chunk.uri, chunk.start, chunk.end)
+			const chunkData = await readChunk(chunk.uri, chunk.start, chunk.end)
 
-			await axios.post('https://your-api/upload', {
-				fileId: chunk.fileId,
+			await axios.post('https://your-server/upload-chunk', {
+				fileName: chunk.uri,
+				chunkData,
 				chunkIndex: chunk.chunkIndex,
-				data,
+				totalChunks: files.find(f => f.id === chunk.fileId)
+					?.totalChunks,
 			})
 
 			onChunkUploaded(chunk)
@@ -102,8 +105,17 @@ export const useUploadManager = () => {
 		start: number,
 		end: number
 	): Promise<string> => {
-		// 🔧 TODO: Replace this with real file reading logic (FileSystem)
-		return 'mock-chunk-data'
+		try {
+			const result = await FileSystem.readAsStringAsync(uri, {
+				encoding: FileSystem.EncodingType.Base64,
+				position: start,
+				length: end - start,
+			})
+			return result
+		} catch (error) {
+			console.error('Failed to read file chunk', error)
+			throw error
+		}
 	}
 
 	return { enqueueFile, files }
