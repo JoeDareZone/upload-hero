@@ -8,8 +8,9 @@ import {
 import { useState } from 'react'
 import {
 	ActivityIndicator,
+	FlatList,
 	Image,
-	ScrollView,
+	SafeAreaView,
 	Text,
 	TouchableOpacity,
 	View,
@@ -29,8 +30,8 @@ export default function HomeScreen() {
 			const result = await pickDocuments()
 			if (result.canceled) return
 
-			if (result.assets.length > MAX_FILES)
-				return handleError(`You can select up to ${MAX_FILES} files.`)
+			if (files.length + result.assets.length > MAX_FILES)
+				return handleError(`You can upload a maximum of ${MAX_FILES} files.`)
 
 			const { errors: newErrors, validFiles } = await validateFiles(
 				result.assets
@@ -69,70 +70,79 @@ export default function HomeScreen() {
 		label: string
 	}) => (
 		<TouchableOpacity
-			className='bg-blue-500 p-4 rounded-md mb-4 min-w-32'
+			className='bg-blue-600 p-4 rounded-xl mb-4 min-w-40 shadow-md active:opacity-80'
 			onPress={onPress}
 			disabled={isLoading}
 		>
 			{isLoading ? (
 				<ActivityIndicator size='small' color='#fff' />
 			) : (
-				<Text className='text-white text-center'>{label}</Text>
+				<Text className='text-white text-center text-base font-medium'>
+					{label}
+				</Text>
 			)}
 		</TouchableOpacity>
 	)
 
 	return (
-		<View className='flex-1 items-center justify-center p-4'>
-			<ScrollView
-				className='flex-1'
-				contentContainerStyle={{
-					flexGrow: 1,
-					justifyContent: 'center',
-					alignItems: 'center',
-				}}
-			>
-				<ActionButton
-					onPress={handlePickDocuments}
-					label='Pick files'
-				/>
-				<ActionButton onPress={handleTakePhoto} label='Pick image' />
+		<SafeAreaView className='flex-1 bg-gray-900 p-4'>
+			<ActionButton onPress={handlePickDocuments} label='Pick files' />
+			<ActionButton onPress={handleTakePhoto} label='Take photo' />
 
-				{errors.length > 0 && (
-					<View className='bg-yellow-400 p-2 rounded mb-4'>
-						{errors.map((error, idx) => (
-							<Text key={idx} className='text-black'>
-								⚠️ {error}
-							</Text>
-						))}
-					</View>
-				)}
-
-				<View className='w-full'>
-					{files.map((file, idx) => (
-						<View
+			{errors.length > 0 && (
+				<View className='bg-yellow-400 p-3 rounded-xl mb-6 w-full shadow-sm'>
+					{errors.map((error, idx) => (
+						<Text
 							key={idx}
-							className='mt-4 bg-black/20 p-2 rounded'
+							className='text-black text-sm leading-relaxed'
 						>
-							<Text className='text-white'>
-								Name: {file.name}
-							</Text>
-							<Text className='text-white'>
-								Type: {file.mimeType}
-							</Text>
-							<Text className='text-white'>
-								Size: {file.size} bytes
-							</Text>
-							{file.uri && (
-								<Image
-									source={{ uri: file.uri }}
-									className='w-[150px] h-[150px] mt-2 rounded-md'
-									resizeMode='cover'
-								/>
-							)}
-						</View>
+							⚠️ {error}
+						</Text>
 					))}
 				</View>
-			</ScrollView>
-		</View>
+			)}
+
+			<Text className='text-white text-lg font-medium p-4'>
+				Files: {files.length} / {MAX_FILES}
+			</Text>
+
+			<FlatList
+				data={files}
+				keyExtractor={item => item.uri}
+				numColumns={2}
+				contentContainerStyle={{ paddingBottom: 16 }}
+				columnWrapperStyle={{
+					justifyContent: 'space-between',
+					gap: 8,
+					marginBottom: 12,
+				}}
+				renderItem={({ item }) => (
+					<View className='bg-white/10 p-2 rounded-2xl w-[48%] shadow-md'>
+						{item.uri && (
+							<Image
+								source={{ uri: item.uri }}
+								className='w-full h-36 rounded-lg'
+								resizeMode='cover'
+							/>
+						)}
+						<Text
+							className='text-white text-sm mt-2 font-semibold'
+							numberOfLines={1}
+						>
+							{item.name}
+						</Text>
+						<Text
+							className='text-gray-300 text-xs'
+							numberOfLines={1}
+						>
+							{item.mimeType}
+						</Text>
+						<Text className='text-gray-400 text-xs'>
+							{item.size} bytes
+						</Text>
+					</View>
+				)}
+			/>
+		</SafeAreaView>
 	)
 }
