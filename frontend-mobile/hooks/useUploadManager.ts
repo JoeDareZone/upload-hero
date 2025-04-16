@@ -41,7 +41,16 @@ export const useUploadManager = () => {
 			queue.current.length > 0
 		) {
 			const chunk = queue.current.shift()
-			if (chunk) uploadChunk(chunk)
+
+			if (!chunk) continue
+
+			const file = files.find(f => f.id === chunk.fileId)
+
+			// Skip if file is paused or error
+			if (!file || file.status === 'paused' || file.status === 'error')
+				continue
+
+			uploadChunk(chunk)
 		}
 	}
 
@@ -118,5 +127,37 @@ export const useUploadManager = () => {
 		}
 	}
 
-	return { enqueueFile, files }
+	const pauseUpload = (fileId: string) => {
+		setFiles(prev =>
+			prev.map(file =>
+				file.id === fileId ? { ...file, status: 'paused' } : file
+			)
+		)
+	}
+
+	const resumeUpload = (fileId: string) => {
+		setFiles(prev =>
+			prev.map(file =>
+				file.id === fileId ? { ...file, status: 'uploading' } : file
+			)
+		)
+		processQueue()
+	}
+
+	const cancelUpload = (fileId: string) => {
+		queue.current = queue.current.filter(chunk => chunk.fileId !== fileId)
+		setFiles(prev =>
+			prev.map(file =>
+				file.id === fileId ? { ...file, status: 'error' } : file
+			)
+		)
+	}
+
+	return {
+		enqueueFile,
+		files,
+		pauseUpload,
+		resumeUpload,
+		cancelUpload,
+	}
 }
