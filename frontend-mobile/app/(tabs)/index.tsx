@@ -39,7 +39,9 @@ export default function HomeScreen() {
 				}
 
 				if (file.size && file.size > MAX_FILE_SIZE) {
-					newErrors.push(`${file.name} exceeds the 50MB size limit.`)
+					newErrors.push(
+						`${file.name} exceeds the ${MAX_FILE_SIZE} size limit.`
+					)
 					return
 				}
 
