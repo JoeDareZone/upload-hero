@@ -19,7 +19,6 @@ const chunkFiles = [
 	'chunk_ak',
 ]
 
-// Upload each chunk
 const uploadChunk = async (chunkPath: string, index: number) => {
 	const form = new FormData()
 	form.append('chunk', fs.createReadStream(chunkPath))

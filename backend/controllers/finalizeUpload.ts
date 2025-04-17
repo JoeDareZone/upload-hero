@@ -35,7 +35,7 @@ export const reassembleFile = async (
 	for (const chunkFilePath of chunkFiles) {
 		const readStream = fs.createReadStream(chunkFilePath)
 
-		readStream.pipe(writeStream)
+		readStream.pipe(writeStream, { end: false })
 
 		await new Promise<void>((resolve, reject) => {
 			readStream.on('end', () => resolve())
