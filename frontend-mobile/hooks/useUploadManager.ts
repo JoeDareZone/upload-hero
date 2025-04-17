@@ -69,11 +69,29 @@ export const useUploadManager = () => {
 		}
 	}
 
+	const isFileUploadable = (fileId: string) => {
+		const file = filesRef.current.find(f => f.id === fileId)
+		return file && file.status === 'uploading'
+	  }
+
 	const uploadChunk = async (chunk: UploadChunk) => {
 		activeUploads.current += 1
 
 		try {
-			await new Promise(resolve => setTimeout(resolve, 1500))
+			if (!isFileUploadable(chunk.fileId)) {
+				activeUploads.current -= 1
+				processQueue()
+				return
+			  }
+			  
+			  // artificial delay
+			  await new Promise(resolve => setTimeout(resolve, 1500))
+			  
+			  if (!isFileUploadable(chunk.fileId)) {
+				activeUploads.current -= 1
+				processQueue()
+				return
+			  }
 
 			const formData = new FormData()
 			formData.append('chunk', {
