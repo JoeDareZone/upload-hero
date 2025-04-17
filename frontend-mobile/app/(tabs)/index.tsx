@@ -7,6 +7,10 @@ import {
 	pickImageFromCamera,
 	validateFiles,
 } from '@/utils/fileUtils'
+import {
+	convertBytesToMB,
+	convertUploadedChunksToPercentage,
+} from '@/utils/helpers'
 import { useState } from 'react'
 import {
 	ActivityIndicator,
@@ -17,6 +21,7 @@ import {
 	TouchableOpacity,
 	View,
 } from 'react-native'
+import * as Progress from 'react-native-progress'
 
 export default function HomeScreen() {
 	const [errors, setErrors] = useState<string[]>([])
@@ -172,57 +177,101 @@ export default function HomeScreen() {
 				<FlatList
 					data={files}
 					keyExtractor={item => item.id}
-					numColumns={2}
 					contentContainerStyle={{ paddingBottom: 16 }}
-					columnWrapperStyle={{
-						justifyContent: 'space-between',
-						gap: 8,
-						marginBottom: 12,
-					}}
+					// columnWrapperStyle={{
+					// 	justifyContent: 'space-between',
+					// 	gap: 8,
+					// 	marginBottom: 12,
+					// }}
 					renderItem={({ item }) => (
-						<View className='bg-white/10 p-2 rounded-2xl w-[48%] shadow-md'>
+						<View className='bg-white/10 p-4 rounded-xl shadow-md flex-row gap-x-6'>
 							{item.uri && (
 								<Image
 									source={{ uri: item.uri }}
-									className='w-full h-36 rounded-lg'
+									className='w-24 h-24 rounded-lg'
 									resizeMode='cover'
 								/>
 							)}
-							<View className='p-3 gap-y-1'>
-								<Text
-									className='text-white text-md font-semibold'
-									numberOfLines={1}
-								>
-									{item.name}
-								</Text>
-								<Text
-									className='text-gray-300 text-sm'
-									numberOfLines={1}
-								>
-									{item.mimeType}
-								</Text>
-								<Text className='text-gray-400 text-sm'>
-									{item.size} bytes
-								</Text>
-							</View>
-
-							<View className='p-3 mt-2 rounded-xl border border-gray-700 bg-gray-800 shadow-sm'>
-								<Text className='text-gray-400'>
-									Status: {item.status}
-								</Text>
-
-								{/* {item.status === 'uploading' && ( */}
-								<Text className='text-gray-400'>
-									Progress: {item.uploadedChunks} /{' '}
-									{item.totalChunks}
-								</Text>
-								{/* )} */}
-
-								{item.status === 'completed' && (
-									<Text className='text-green-400 font-semibold'>
-										Done ✅
+							<View className='flex-1 '>
+								<View className='flex-row justify-between mb-3'>
+									<Text
+										className='text-white text-lg font-semibold'
+										numberOfLines={1}
+									>
+										{item.name}
 									</Text>
+									{item.status === 'completed' ? (
+										<Text className='text-green-400 font-semibold'>
+											✅
+										</Text>
+									) : (
+										<TouchableOpacity
+											onPress={() => removeFile(item.id)}
+										>
+											<IconSymbol
+												name='trash'
+												size={20}
+												color='red'
+											/>
+										</TouchableOpacity>
+									)}
+								</View>
+								{item.status !== 'uploading' && (
+									<Progress.Bar
+										progress={
+											item.uploadedChunks /
+											item.totalChunks
+										}
+										width={null}
+										height={8}
+										color={`${
+											item.uploadedChunks ===
+											item.totalChunks
+												? 'green'
+												: 'lightblue'
+										}`}
+										borderWidth={0}
+										style={{ marginBottom: 16 }}
+										unfilledColor='rgba(255, 255, 255, 0.2)'
+									/>
 								)}
+								<View className='flex-row justify-between'>
+									<View className='flex-row gap-x-2'>
+										<Text className='text-gray-300 text-md'>
+											{convertBytesToMB(item.size)} MB
+										</Text>
+										<Text
+											className='text-gray-400 text-sm'
+											numberOfLines={1}
+										>
+											{item.mimeType}
+										</Text>
+									</View>
+									<Text className='text-gray-400'>
+										{convertUploadedChunksToPercentage(
+											item.uploadedChunks,
+											item.totalChunks
+										)}{' '}
+										%
+									</Text>
+								</View>
+
+								{/* <View className='p-3 rounded-xl border border-gray-700 bg-gray-800'>
+									<Text className='text-gray-400 mb-1'>
+										Status: {item.status}
+									</Text>
+									{item.status === 'uploading' && (
+										<Text className='text-gray-400'>
+											Progress: {item.uploadedChunks} /{' '}
+											{item.totalChunks}
+										</Text>
+									)}
+									{item.status === 'completed' && (
+										<Text className='text-green-400 font-semibold'>
+											Done ✅
+										</Text>
+									)}
+								</View> */}
 							</View>
 						</View>
 					)}
