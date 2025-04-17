@@ -8,3 +8,5 @@ export const convertUploadedChunksToPercentage = (
 ) => {
 	return Math.round((uploadedChunks / totalChunks) * 100)
 }
+
+export const generateFileId = () => `${Date.now()}-${Math.random()}`

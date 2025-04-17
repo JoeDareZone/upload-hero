@@ -10,6 +10,7 @@ import {
 import {
 	convertBytesToMB,
 	convertUploadedChunksToPercentage,
+	generateFileId,
 } from '@/utils/helpers'
 import { useState } from 'react'
 import {
@@ -24,14 +25,22 @@ import {
 import * as Progress from 'react-native-progress'
 
 export default function HomeScreen() {
+	const {
+		enqueueFile,
+		files,
+		processQueue,
+		removeFile,
+		pauseUpload,
+		resumeUpload,
+		cancelUpload,
+	} = useUploadManager()
 	const [errors, setErrors] = useState<string[]>([])
 	const [isLoading, setIsLoading] = useState(false)
 
-	const { enqueueFile, files, processQueue, removeFile } = useUploadManager()
+	const hasQueuedFiles = files.some(file => file.status === 'queued')
 
 	const handleError = (msg: string) => setErrors([msg])
-
-	const hasQueuedFiles = files.some(file => file.status === 'queued')
+	const handleUploadSelectedFiles = () => processQueue()
 
 	const handlePickDocuments = async () => {
 		setErrors([])
@@ -92,10 +101,6 @@ export default function HomeScreen() {
 			setIsLoading(false)
 		}
 	}
-
-	const handleUploadSelectedFiles = () => processQueue()
-
-	const generateFileId = () => `${Date.now()}-${Math.random()}`
 
 	const ActionButton = ({
 		onPress,
@@ -233,7 +238,7 @@ export default function HomeScreen() {
 											unfilledColor='rgba(255, 255, 255, 0.2)'
 										/>
 									)}
-									<View className='flex-row justify-between'>
+									<View className='flex-row justify-between mb-2'>
 										<View className='flex-row gap-x-2'>
 											<Text className='text-gray-300 text-md'>
 												{convertBytesToMB(item.size)} MB
@@ -252,6 +257,51 @@ export default function HomeScreen() {
 											)}{' '}
 											%
 										</Text>
+									</View>
+									<View className='flex-row gap-x-2 justify-end'>
+										<TouchableOpacity
+											className='flex-row items-center gap-x-2'
+											onPress={() => pauseUpload(item.id)}
+										>
+											<IconSymbol
+												name='pause'
+												size={20}
+												color='gray'
+											/>
+											<Text className='text-gray-400'>
+												Pause
+											</Text>
+										</TouchableOpacity>
+										<TouchableOpacity
+											className='flex-row items-center gap-x-2'
+											onPress={() =>
+												resumeUpload(item.id)
+											}
+										>
+											<IconSymbol
+												name='play'
+												size={20}
+												color='gray'
+											/>
+											<Text className='text-gray-400'>
+												Resume
+											</Text>
+										</TouchableOpacity>
+										<TouchableOpacity
+											className='flex-row items-center gap-x-2'
+											onPress={() =>
+												cancelUpload(item.id)
+											}
+										>
+											<IconSymbol
+												name='xmark'
+												size={20}
+												color='gray'
+											/>
+											<Text className='text-gray-400'>
+												Cancel
+											</Text>
+										</TouchableOpacity>
 									</View>
 								</View>
 							</View>

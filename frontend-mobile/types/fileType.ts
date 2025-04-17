@@ -6,11 +6,19 @@ export type FileType = {
 	size: number
 }
 
+type UploadStatus =
+	| 'queued'
+	| 'uploading'
+	| 'paused'
+	| 'completed'
+	| 'error'
+	| 'cancelled'
+
 export type UploadFile = FileType & {
 	id: string
 	totalChunks: number
 	uploadedChunks: number
-	status: 'queued' | 'uploading' | 'completed' | 'paused' | 'error'
+	status: UploadStatus
 }
 
 export type UploadChunk = {
@@ -18,7 +26,7 @@ export type UploadChunk = {
 	chunkIndex: number
 	start: number
 	end: number
-	status: 'queued' | 'uploading' | 'completed' | 'failed'
+	status: UploadStatus
 	retries: number
 	uri: string
 }

@@ -13,6 +13,7 @@ export const useUploadManager = () => {
 	const updateFiles = (updated: UploadFile[]) => {
 		filesRef.current = updated
 		setFiles(updated)
+		console.log(updated, 'updated')
 	}
 
 	const enqueueFile = (file: UploadFile) => {
@@ -39,7 +40,6 @@ export const useUploadManager = () => {
 			...filesRef.current,
 			{ ...file, status: 'queued', totalChunks, uploadedChunks: 0 },
 		])
-
 	}
 
 	const processQueue = () => {
@@ -62,6 +62,8 @@ export const useUploadManager = () => {
 		activeUploads.current += 1
 
 		try {
+			await new Promise(resolve => setTimeout(resolve, 1500))
+
 			const formData = new FormData()
 			formData.append('chunk', {
 				uri: chunk.uri,
@@ -86,8 +88,8 @@ export const useUploadManager = () => {
 				console.error(
 					`Chunk ${chunk.chunkIndex} failed after 3 retries.`
 				)
-				setFiles(prev =>
-					prev.map(file =>
+				updateFiles(
+					filesRef.current.map(file =>
 						file.id === chunk.fileId
 							? { ...file, status: 'error' }
 							: file
@@ -101,8 +103,8 @@ export const useUploadManager = () => {
 	}
 
 	const onChunkUploaded = (chunk: UploadChunk) => {
-		setFiles(prev =>
-			prev.map(file => {
+		updateFiles(
+			filesRef.current.map(file => {
 				if (file.id !== chunk.fileId) return file
 
 				const uploadedChunks = file.uploadedChunks + 1
@@ -152,34 +154,31 @@ export const useUploadManager = () => {
 		}
 	}
 
-	const pauseUpload = (fileId: string) =>
-		setFiles(prev =>
-			prev.map(file =>
-				file.id === fileId ? { ...file, status: 'paused' } : file
-			)
+	const removeFile = (fileId: string) => {
+		queue.current = queue.current.filter(chunk => chunk.fileId !== fileId)
+		updateFiles(filesRef.current.filter(file => file.id !== fileId))
+	}
+
+	const pauseUpload = (fileId: string) => {
+		const updated = filesRef.current.map(file =>
+			file.id === fileId ? { ...file, status: 'paused' as const } : file
 		)
+		updateFiles(updated)
+	}
 
 	const resumeUpload = (fileId: string) => {
-		setFiles(prev =>
-			prev.map(file =>
-				file.id === fileId ? { ...file, status: 'uploading' } : file
-			)
+		const updated = filesRef.current.map(file =>
+			file.id === fileId && file.status === 'paused'
+				? { ...file, status: 'uploading' as const }
+				: file
 		)
+		updateFiles(updated)
 		processQueue()
 	}
 
 	const cancelUpload = (fileId: string) => {
 		queue.current = queue.current.filter(chunk => chunk.fileId !== fileId)
-		setFiles(prev =>
-			prev.map(file =>
-				file.id === fileId ? { ...file, status: 'error' } : file
-			)
-		)
-	}
-
-	const removeFile = (fileId: string) => {
-		queue.current = queue.current.filter(chunk => chunk.fileId !== fileId)
-		setFiles(prev => prev.filter(file => file.id !== fileId))
+		updateFiles(filesRef.current.filter(file => file.id !== fileId))
 	}
 
 	return {
