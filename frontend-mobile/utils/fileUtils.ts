@@ -55,12 +55,12 @@ export const validateFiles = async (
 			continue
 		}
 
-		if (file.size && file.size > MAX_FILE_SIZE_BYTES) {
-			errors.push(
-				`${file.name} exceeds the ${MAX_FILE_SIZE_MB}MB size limit.`
-			)
-			continue
-		}
+		// if (file.size && file.size > MAX_FILE_SIZE_BYTES) {
+		// 	errors.push(
+		// 		`${file.name} exceeds the ${MAX_FILE_SIZE_MB}MB size limit.`
+		// 	)
+		// 	continue
+		// }
 
 		let thumbnailUri: string | undefined = undefined
 		if (file.mimeType?.startsWith('video/')) {

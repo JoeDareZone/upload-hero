@@ -1,4 +1,4 @@
-import { useUploadManager } from '@/hooks/useUploadManager' // Make sure this path is correct
+import { useUploadManager } from '@/hooks/useUploadManager'
 import { FileType, UploadFile } from '@/types/fileType'
 import { CHUNK_SIZE, MAX_FILES } from '@/utils/constants'
 import {
@@ -18,7 +18,7 @@ import {
 } from 'react-native'
 
 export default function HomeScreen() {
-	const [files, setFiles] = useState<UploadFile[]>([]) // Use UploadFile[] type here
+	const [files, setFiles] = useState<UploadFile[]>([])
 	const [errors, setErrors] = useState<string[]>([])
 	const [isLoading, setIsLoading] = useState(false)
 
@@ -43,7 +43,6 @@ export default function HomeScreen() {
 			)
 			if (newErrors.length) setErrors(newErrors)
 
-			// Enqueue files to be uploaded
 			validFiles.forEach((file: FileType) => {
 				const uploadFile: UploadFile = {
 					...file,

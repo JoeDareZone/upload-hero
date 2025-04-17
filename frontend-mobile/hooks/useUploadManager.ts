@@ -5,7 +5,9 @@ import * as FileSystem from 'expo-file-system'
 import { useRef, useState } from 'react'
 
 export const useUploadManager = () => {
+	const filesRef = useRef<UploadFile[]>([])
 	const [files, setFiles] = useState<UploadFile[]>([])
+
 	const activeUploads = useRef(0)
 	const queue = useRef<UploadChunk[]>([])
 
@@ -15,12 +17,11 @@ export const useUploadManager = () => {
 		const chunks: UploadChunk[] = []
 
 		for (let i = 0; i < totalChunks; i++) {
-			console.log('i', i)
 			const start = i * CHUNK_SIZE
 			const end = Math.min(file.size, start + CHUNK_SIZE)
 			chunks.push({
 				fileId: file.id,
-				chunkIndex: i,
+				chunkIndex: i + 1,
 				start,
 				end,
 				status: 'queued',
@@ -30,10 +31,19 @@ export const useUploadManager = () => {
 		}
 
 		queue.current.push(...chunks)
-		setFiles(prev => [
-			...prev,
-			{ ...file, status: 'queued', totalChunks, uploadedChunks: 0 },
-		])
+		setFiles(prev => {
+			const updated = [
+				...prev,
+				{
+					...file,
+					status: 'queued' as const,
+					totalChunks,
+					uploadedChunks: 0,
+				},
+			]
+			filesRef.current = updated
+			return updated
+		})
 		processQueue()
 	}
 
@@ -42,11 +52,13 @@ export const useUploadManager = () => {
 			activeUploads.current < MAX_CONCURRENT_UPLOADS &&
 			queue.current.length > 0
 		) {
+			console.log('processing queue', queue.current.length)
 			const chunk = queue.current.shift()
 
 			if (!chunk) continue
 
-			const file = files.find(f => f.id === chunk.fileId)
+			const file = filesRef.current.find(f => f.id === chunk.fileId)
+
 
 			// Skip if file is paused or error
 			if (!file || file.status === 'paused' || file.status === 'error')
@@ -57,21 +69,28 @@ export const useUploadManager = () => {
 	}
 
 	const uploadChunk = async (chunk: UploadChunk) => {
+		console.log('uploading chunk', chunk)
 		activeUploads.current += 1
 
 		try {
-			const chunkData = await readChunk(chunk.uri, chunk.start, chunk.end)
+			const formData = new FormData()
+			formData.append('chunk', {
+				uri: chunk.uri,
+				type: 'application/octet-stream',
+				name: `chunk_${chunk.chunkIndex}`,
+			} as any)
+			formData.append('uploadId', chunk.fileId)
+			formData.append('chunkIndex', chunk.chunkIndex.toString())
 
-			await axios.post('https://your-server/upload-chunk', {
-				fileName: chunk.uri,
-				chunkData,
-				chunkIndex: chunk.chunkIndex,
-				totalChunks: files.find(f => f.id === chunk.fileId)
-					?.totalChunks,
+			await axios.post('http://localhost:4000/upload-chunk', formData, {
+				headers: {
+					'Content-Type': 'multipart/form-data',
+				},
 			})
-
+			console.log('chunk uploaded', chunk)
 			onChunkUploaded(chunk)
 		} catch (err) {
+			console.log('chunk upload failed', chunk)
 			if (chunk.retries < 3) {
 				const delay = Math.pow(2, chunk.retries) * 1000
 				chunk.retries += 1
@@ -96,19 +115,36 @@ export const useUploadManager = () => {
 
 	const onChunkUploaded = (chunk: UploadChunk) => {
 		setFiles(prev =>
-			prev.map(file =>
-				file.id === chunk.fileId
-					? {
-							...file,
-							uploadedChunks: file.uploadedChunks + 1,
-							status:
-								file.uploadedChunks + 1 === file.totalChunks
-									? 'completed'
-									: file.status,
-					  }
-					: file
-			)
+			prev.map(file => {
+				if (file.id !== chunk.fileId) return file
+
+				const uploadedChunks = file.uploadedChunks + 1
+				const isCompleted = uploadedChunks === file.totalChunks
+
+				if (isCompleted) {
+					finalizeUpload(file)
+				}
+
+				return {
+					...file,
+					uploadedChunks,
+					status: isCompleted ? 'completed' : file.status,
+				}
+			})
 		)
+	}
+
+	const finalizeUpload = async (file: UploadFile) => {
+		try {
+			await axios.post('http://localhost:4000/finalize-upload', {
+				uploadId: file.id,
+				totalChunks: file.totalChunks,
+				fileName: file.name,
+			})
+			console.log(`✅ Finalized upload: ${file.name}`)
+		} catch (err) {
+			console.error('❌ Finalize upload failed', err)
+		}
 	}
 
 	const readChunk = async (
@@ -129,13 +165,12 @@ export const useUploadManager = () => {
 		}
 	}
 
-	const pauseUpload = (fileId: string) => 
+	const pauseUpload = (fileId: string) =>
 		setFiles(prev =>
 			prev.map(file =>
 				file.id === fileId ? { ...file, status: 'paused' } : file
 			)
 		)
-	
 
 	const resumeUpload = (fileId: string) => {
 		setFiles(prev =>
