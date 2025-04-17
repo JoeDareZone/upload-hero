@@ -39,3 +39,4 @@ app-example
 
 
 /backend/uploads/
+/backend/uploads/*

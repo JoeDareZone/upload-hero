@@ -34,6 +34,7 @@ export const pickImageFromCamera = async () => {
 		name: file.fileName ?? 'Camera Image',
 		mimeType: file.mimeType ?? 'image/jpeg',
 		size: file.fileSize ?? 0,
+		status: 'pending',
 	}
 }
 

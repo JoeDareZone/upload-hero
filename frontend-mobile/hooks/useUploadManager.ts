@@ -40,7 +40,6 @@ export const useUploadManager = () => {
 			{ ...file, status: 'queued', totalChunks, uploadedChunks: 0 },
 		])
 
-		processQueue()
 	}
 
 	const processQueue = () => {
@@ -178,8 +177,15 @@ export const useUploadManager = () => {
 		)
 	}
 
+	const removeFile = (fileId: string) => {
+		queue.current = queue.current.filter(chunk => chunk.fileId !== fileId)
+		setFiles(prev => prev.filter(file => file.id !== fileId))
+	}
+
 	return {
 		enqueueFile,
+		processQueue,
+		removeFile,
 		files,
 		pauseUpload,
 		resumeUpload,

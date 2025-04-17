@@ -1,5 +1,5 @@
 import { useUploadManager } from '@/hooks/useUploadManager'
-import { FileType, UploadFile } from '@/types/fileType'
+import { UploadFile } from '@/types/fileType'
 import { CHUNK_SIZE, MAX_FILES } from '@/utils/constants'
 import {
 	pickDocuments,
@@ -21,9 +21,11 @@ export default function HomeScreen() {
 	const [errors, setErrors] = useState<string[]>([])
 	const [isLoading, setIsLoading] = useState(false)
 
-	const { enqueueFile, files } = useUploadManager()
+	const { enqueueFile, files, processQueue, removeFile } = useUploadManager()
 
 	const handleError = (msg: string) => setErrors([msg])
+
+	const hasQueuedFiles = files.some(file => file.status === 'queued')
 
 	const handlePickDocuments = async () => {
 		setErrors([])
@@ -42,7 +44,7 @@ export default function HomeScreen() {
 			)
 			if (newErrors.length) setErrors(newErrors)
 
-			validFiles.forEach((file: FileType) => {
+			validFiles.forEach(file => {
 				const uploadFile: UploadFile = {
 					...file,
 					id: generateFileId(),
@@ -77,27 +79,32 @@ export default function HomeScreen() {
 			}
 		} catch (error: any) {
 			console.error(error)
-			setErrors([
-				error.message || 'Something went wrong while picking an image.',
-			])
+			handleError(
+				error.message || 'Something went wrong while picking an image.'
+			)
 		} finally {
 			setIsLoading(false)
 		}
 	}
+
+	const handleUploadSelectedFiles = () => processQueue()
 
 	const generateFileId = () => `${Date.now()}-${Math.random()}`
 
 	const ActionButton = ({
 		onPress,
 		label,
+		disabled,
 	}: {
 		onPress: () => void
 		label: string
+		disabled?: boolean
 	}) => (
 		<TouchableOpacity
-			className='bg-blue-600 p-4 rounded-xl mb-4 min-w-40 min-h-14 shadow-md active:opacity-80'
+			className={`${disabled ? 'bg-gray-500' : 'bg-blue-600'} p-4 rounded-xl mb-4 min-w-40 min-h-14 shadow-md active:opacity-80`}
 			onPress={onPress}
-			disabled={isLoading}
+			disabled={disabled}
+			style={{ opacity: isLoading ? 0.5 : 1 }}
 		>
 			{isLoading ? (
 				<ActivityIndicator size='small' color='#fff' />
@@ -115,8 +122,13 @@ export default function HomeScreen() {
 				<ActionButton
 					onPress={handlePickDocuments}
 					label='Pick files'
+					disabled={isLoading}
 				/>
-				<ActionButton onPress={handleTakePhoto} label='Take photo' />
+				<ActionButton
+					onPress={handleTakePhoto}
+					label='Take photo'
+					disabled={isLoading}
+				/>
 				{errors.length > 0 && (
 					<View className='bg-yellow-400 p-3 rounded-xl mb-6 w-full shadow-sm'>
 						{errors.map((error, idx) => (
@@ -130,9 +142,13 @@ export default function HomeScreen() {
 					</View>
 				)}
 
+				{/* Upload queue */}
+				<Text className='text-white text-lg font-semibold mb-2'>
+					Uploads
+				</Text>
 				<FlatList
 					data={files}
-					keyExtractor={item => item.uri}
+					keyExtractor={item => item.id}
 					numColumns={2}
 					contentContainerStyle={{ paddingBottom: 16 }}
 					columnWrapperStyle={{
@@ -149,9 +165,9 @@ export default function HomeScreen() {
 									resizeMode='cover'
 								/>
 							)}
-							<View className='p-4 gap-y-0.5'>
+							<View className='p-3 gap-y-1'>
 								<Text
-									className='text-white text-md mt-2 font-semibold'
+									className='text-white text-md font-semibold'
 									numberOfLines={1}
 								>
 									{item.name}
@@ -166,22 +182,38 @@ export default function HomeScreen() {
 									{item.size} bytes
 								</Text>
 							</View>
-							<View
-								key={item.id}
-								className='p-4 mb-4 rounded-xl border-2 gap-y-2 border-gray-700 bg-gray-800 shadow-sm'
-							>
+
+							<View className='p-3 mt-2 rounded-xl border border-gray-700 bg-gray-800 shadow-sm'>
 								<Text className='text-gray-400'>
 									Status: {item.status}
 								</Text>
-								<Text className='text-gray-400'>
-									Progress: {item.uploadedChunks} /{' '}
-									{item.totalChunks}
-								</Text>
+
+								{/* {item.status === 'uploading' && ( */}
+									<Text className='text-gray-400'>
+										Progress: {item.uploadedChunks} /{' '}
+										{item.totalChunks}
+									</Text>
+								{/* )} */}
+
+								{item.status === 'completed' && (
+									<Text className='text-green-400 font-semibold'>
+										Done ✅
+									</Text>
+								)}
 							</View>
 						</View>
 					)}
 				/>
 			</View>
+			{/* {hasQueuedFiles && ( */}
+			<View className='m-4'>
+				<ActionButton
+					onPress={handleUploadSelectedFiles}
+					label='Upload'
+					disabled={!hasQueuedFiles}
+				/>
+			</View>
+			{/* )} */}
 		</SafeAreaView>
 	)
 }
