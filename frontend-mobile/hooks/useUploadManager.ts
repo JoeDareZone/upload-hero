@@ -10,10 +10,12 @@ export const useUploadManager = () => {
 	const queue = useRef<UploadChunk[]>([])
 
 	const enqueueFile = (file: UploadFile) => {
+		console.log('enqueueFile', file)
 		const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
 		const chunks: UploadChunk[] = []
 
 		for (let i = 0; i < totalChunks; i++) {
+			console.log('i', i)
 			const start = i * CHUNK_SIZE
 			const end = Math.min(file.size, start + CHUNK_SIZE)
 			chunks.push({
@@ -127,13 +129,13 @@ export const useUploadManager = () => {
 		}
 	}
 
-	const pauseUpload = (fileId: string) => {
+	const pauseUpload = (fileId: string) => 
 		setFiles(prev =>
 			prev.map(file =>
 				file.id === fileId ? { ...file, status: 'paused' } : file
 			)
 		)
-	}
+	
 
 	const resumeUpload = (fileId: string) => {
 		setFiles(prev =>

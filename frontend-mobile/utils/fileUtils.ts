@@ -2,7 +2,7 @@ import { FileType } from '@/types/fileType'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import * as VideoThumbnails from 'expo-video-thumbnails'
-import { MAX_FILE_SIZE } from './constants'
+import { MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB } from './constants'
 
 export const pickDocuments = async () => {
 	const result = await DocumentPicker.getDocumentAsync({
@@ -55,8 +55,10 @@ export const validateFiles = async (
 			continue
 		}
 
-		if (file.size && file.size > MAX_FILE_SIZE) {
-			errors.push(`${file.name} exceeds the ${MAX_FILE_SIZE} size limit.`)
+		if (file.size && file.size > MAX_FILE_SIZE_BYTES) {
+			errors.push(
+				`${file.name} exceeds the ${MAX_FILE_SIZE_MB}MB size limit.`
+			)
 			continue
 		}
 
@@ -78,6 +80,7 @@ export const validateFiles = async (
 			name: file.name,
 			mimeType: file.mimeType,
 			size: file.size || 0,
+			status: 'queued',
 		})
 	}
 

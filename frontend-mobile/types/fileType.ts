@@ -1,4 +1,5 @@
 export type FileType = {
+	status: string
 	uri: string
 	name: string
 	mimeType: string
