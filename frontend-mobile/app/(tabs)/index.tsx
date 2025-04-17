@@ -18,11 +18,10 @@ import {
 } from 'react-native'
 
 export default function HomeScreen() {
-	const [files, setFiles] = useState<UploadFile[]>([])
 	const [errors, setErrors] = useState<string[]>([])
 	const [isLoading, setIsLoading] = useState(false)
 
-	const { enqueueFile } = useUploadManager()
+	const { enqueueFile, files } = useUploadManager()
 
 	const handleError = (msg: string) => setErrors([msg])
 
@@ -33,7 +32,7 @@ export default function HomeScreen() {
 			const result = await pickDocuments()
 			if (result.canceled) return
 
-			if (files.length + result.assets.length > MAX_FILES)
+			if (result.assets.length > MAX_FILES)
 				return handleError(
 					`You can upload a maximum of ${MAX_FILES} files.`
 				)
@@ -52,7 +51,6 @@ export default function HomeScreen() {
 					uploadedChunks: 0,
 				}
 				enqueueFile(uploadFile)
-				setFiles(prev => [...prev, uploadFile])
 			})
 		} catch (error) {
 			console.error(error)
@@ -76,7 +74,6 @@ export default function HomeScreen() {
 					uploadedChunks: 0,
 				}
 				enqueueFile(uploadFile)
-				setFiles(prev => [...prev, uploadFile])
 			}
 		} catch (error: any) {
 			console.error(error)

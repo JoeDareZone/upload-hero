@@ -7,12 +7,15 @@ import { useRef, useState } from 'react'
 export const useUploadManager = () => {
 	const filesRef = useRef<UploadFile[]>([])
 	const [files, setFiles] = useState<UploadFile[]>([])
-
 	const activeUploads = useRef(0)
 	const queue = useRef<UploadChunk[]>([])
 
+	const updateFiles = (updated: UploadFile[]) => {
+		filesRef.current = updated
+		setFiles(updated)
+	}
+
 	const enqueueFile = (file: UploadFile) => {
-		console.log('enqueueFile', file)
 		const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
 		const chunks: UploadChunk[] = []
 
@@ -31,19 +34,12 @@ export const useUploadManager = () => {
 		}
 
 		queue.current.push(...chunks)
-		setFiles(prev => {
-			const updated = [
-				...prev,
-				{
-					...file,
-					status: 'queued' as const,
-					totalChunks,
-					uploadedChunks: 0,
-				},
-			]
-			filesRef.current = updated
-			return updated
-		})
+
+		updateFiles([
+			...filesRef.current,
+			{ ...file, status: 'queued', totalChunks, uploadedChunks: 0 },
+		])
+
 		processQueue()
 	}
 
@@ -52,15 +48,10 @@ export const useUploadManager = () => {
 			activeUploads.current < MAX_CONCURRENT_UPLOADS &&
 			queue.current.length > 0
 		) {
-			console.log('processing queue', queue.current.length)
 			const chunk = queue.current.shift()
-
 			if (!chunk) continue
 
 			const file = filesRef.current.find(f => f.id === chunk.fileId)
-
-
-			// Skip if file is paused or error
 			if (!file || file.status === 'paused' || file.status === 'error')
 				continue
 
@@ -69,7 +60,6 @@ export const useUploadManager = () => {
 	}
 
 	const uploadChunk = async (chunk: UploadChunk) => {
-		console.log('uploading chunk', chunk)
 		activeUploads.current += 1
 
 		try {
@@ -87,10 +77,8 @@ export const useUploadManager = () => {
 					'Content-Type': 'multipart/form-data',
 				},
 			})
-			console.log('chunk uploaded', chunk)
 			onChunkUploaded(chunk)
 		} catch (err) {
-			console.log('chunk upload failed', chunk)
 			if (chunk.retries < 3) {
 				const delay = Math.pow(2, chunk.retries) * 1000
 				chunk.retries += 1
