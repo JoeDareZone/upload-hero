@@ -72,7 +72,7 @@ export const useUploadManager = () => {
 	const isFileUploadable = (fileId: string) => {
 		const file = filesRef.current.find(f => f.id === fileId)
 		return file && file.status === 'uploading'
-	  }
+	}
 
 	const uploadChunk = async (chunk: UploadChunk) => {
 		activeUploads.current += 1
@@ -82,16 +82,16 @@ export const useUploadManager = () => {
 				activeUploads.current -= 1
 				processQueue()
 				return
-			  }
-			  
-			  // artificial delay
-			  await new Promise(resolve => setTimeout(resolve, 1500))
-			  
-			  if (!isFileUploadable(chunk.fileId)) {
+			}
+
+			// artificial delay
+			await new Promise(resolve => setTimeout(resolve, 1500))
+
+			if (!isFileUploadable(chunk.fileId)) {
 				activeUploads.current -= 1
 				processQueue()
 				return
-			  }
+			}
 
 			const formData = new FormData()
 			formData.append('chunk', {
@@ -192,12 +192,37 @@ export const useUploadManager = () => {
 	}
 
 	const resumeUpload = (fileId: string) => {
+		const file = filesRef.current.find(f => f.id === fileId)
+		if (!file) return
+
+		const uploadedChunkIndexes = new Set(
+			queue.current
+				.filter(chunk => chunk.fileId === fileId)
+				.map(chunk => chunk.chunkIndex)
+		)
+
+		for (let i = 1; i <= file.totalChunks; i++) {
+			if (i <= file.uploadedChunks) continue // already uploaded
+			if (uploadedChunkIndexes.has(i)) continue // already queued
+
+			queue.current.push({
+				fileId,
+				chunkIndex: i,
+				start: (i - 1) * CHUNK_SIZE,
+				end: Math.min(file.size, i * CHUNK_SIZE),
+				status: 'queued',
+				retries: 0,
+				uri: file.uri,
+			})
+		}
+
 		const updated = filesRef.current.map(file =>
-			file.id === fileId && file.status === 'paused'
+			file.id === fileId
 				? { ...file, status: 'uploading' as const }
 				: file
 		)
 		updateFiles(updated)
+
 		processQueue()
 	}
 
