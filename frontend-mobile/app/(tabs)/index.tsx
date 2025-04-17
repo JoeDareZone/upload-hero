@@ -125,8 +125,8 @@ export default function HomeScreen() {
 	)
 
 	return (
-		<SafeAreaView className='flex-1 bg-gray-900 p-4'>
-			<View className='m-4'>
+		<SafeAreaView className='flex-1 bg-gray-900 '>
+			<View className='flex-1 p-4'>
 				<TouchableOpacity
 					onPress={handlePickDocuments}
 					className=' min-h-48 my-4 justify-center items-center bg-gray-800 py-10 rounded-xl'
@@ -174,110 +174,90 @@ export default function HomeScreen() {
 					</View>
 				)}
 
-				<FlatList
-					data={files}
-					keyExtractor={item => item.id}
-					contentContainerStyle={{ paddingBottom: 16 }}
-					// columnWrapperStyle={{
-					// 	justifyContent: 'space-between',
-					// 	gap: 8,
-					// 	marginBottom: 12,
-					// }}
-					renderItem={({ item }) => (
-						<View className='bg-white/10 p-4 rounded-xl shadow-md flex-row gap-x-6'>
-							{item.uri && (
-								<Image
-									source={{ uri: item.uri }}
-									className='w-24 h-24 rounded-lg'
-									resizeMode='cover'
-								/>
-							)}
-							<View className='flex-1 '>
-								<View className='flex-row justify-between mb-3'>
-									<Text
-										className='text-white text-lg font-semibold'
-										numberOfLines={1}
-									>
-										{item.name}
-									</Text>
-									{item.status === 'completed' ? (
-										<Text className='text-green-400 font-semibold'>
-											✅
-										</Text>
-									) : (
-										<TouchableOpacity
-											onPress={() => removeFile(item.id)}
-										>
-											<IconSymbol
-												name='trash'
-												size={20}
-												color='red'
-											/>
-										</TouchableOpacity>
-									)}
-								</View>
-								{item.status !== 'uploading' && (
-									<Progress.Bar
-										progress={
-											item.uploadedChunks /
-											item.totalChunks
-										}
-										width={null}
-										height={8}
-										color={`${
-											item.uploadedChunks ===
-											item.totalChunks
-												? 'green'
-												: 'lightblue'
-										}`}
-										borderWidth={0}
-										style={{ marginBottom: 16 }}
-										unfilledColor='rgba(255, 255, 255, 0.2)'
+				<View className='flex-1'>
+					<FlatList
+						data={files}
+						keyExtractor={item => item.id}
+						contentContainerStyle={{ paddingBottom: 16, gap: 12 }}
+						renderItem={({ item }) => (
+							<View className='bg-white/10 p-4 rounded-xl shadow-md flex-row gap-x-6'>
+								{item.uri && (
+									<Image
+										source={{ uri: item.uri }}
+										className='w-24 h-24 rounded-lg'
+										resizeMode='cover'
 									/>
 								)}
-								<View className='flex-row justify-between'>
-									<View className='flex-row gap-x-2'>
-										<Text className='text-gray-300 text-md'>
-											{convertBytesToMB(item.size)} MB
-										</Text>
+								<View className='flex-1'>
+									<View className='flex-row justify-between mb-3'>
 										<Text
-											className='text-gray-400 text-sm'
+											className='text-white text-lg font-semibold'
 											numberOfLines={1}
 										>
-											{item.mimeType}
+											{item.name}
+										</Text>
+										{item.status === 'completed' ? (
+											<Text className='text-green-400 font-semibold'>
+												✅
+											</Text>
+										) : (
+											<TouchableOpacity
+												onPress={() =>
+													removeFile(item.id)
+												}
+											>
+												<IconSymbol
+													name='trash'
+													size={20}
+													color='red'
+												/>
+											</TouchableOpacity>
+										)}
+									</View>
+									{item.status !== 'uploading' && (
+										<Progress.Bar
+											progress={
+												item.uploadedChunks /
+												item.totalChunks
+											}
+											width={null}
+											height={8}
+											color={
+												item.uploadedChunks ===
+												item.totalChunks
+													? 'green'
+													: 'lightblue'
+											}
+											borderWidth={0}
+											style={{ marginBottom: 16 }}
+											unfilledColor='rgba(255, 255, 255, 0.2)'
+										/>
+									)}
+									<View className='flex-row justify-between'>
+										<View className='flex-row gap-x-2'>
+											<Text className='text-gray-300 text-md'>
+												{convertBytesToMB(item.size)} MB
+											</Text>
+											<Text
+												className='text-gray-400 text-sm'
+												numberOfLines={1}
+											>
+												{item.mimeType}
+											</Text>
+										</View>
+										<Text className='text-gray-400'>
+											{convertUploadedChunksToPercentage(
+												item.uploadedChunks,
+												item.totalChunks
+											)}{' '}
+											%
 										</Text>
 									</View>
-									<Text className='text-gray-400'>
-										{convertUploadedChunksToPercentage(
-											item.uploadedChunks,
-											item.totalChunks
-										)}{' '}
-										%
-									</Text>
 								</View>
-
-								{/* <View className='p-3 rounded-xl border border-gray-700 bg-gray-800'>
-									<Text className='text-gray-400 mb-1'>
-										Status: {item.status}
-									</Text>
-									{item.status === 'uploading' && (
-										<Text className='text-gray-400'>
-											Progress: {item.uploadedChunks} /{' '}
-											{item.totalChunks}
-										</Text>
-									)}
-									{item.status === 'completed' && (
-										<Text className='text-green-400 font-semibold'>
-											Done ✅
-										</Text>
-									)}
-								</View> */}
 							</View>
-						</View>
-					)}
-				/>
-			</View>
-			<View className='m-4'>
+						)}
+					/>
+				</View>
 				<ActionButton
 					onPress={handleUploadSelectedFiles}
 					label='Upload'
