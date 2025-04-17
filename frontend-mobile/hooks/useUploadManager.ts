@@ -51,8 +51,19 @@ export const useUploadManager = () => {
 			if (!chunk) continue
 
 			const file = filesRef.current.find(f => f.id === chunk.fileId)
-			if (!file || file.status === 'paused' || file.status === 'error')
+			if (
+				!file ||
+				file.status === 'paused' ||
+				file.status === 'error' ||
+				file.status === 'completed'
+			)
 				continue
+
+			updateFiles(
+				filesRef.current.map(f =>
+					f.id === chunk.fileId ? { ...f, status: 'uploading' } : f
+				)
+			)
 
 			uploadChunk(chunk)
 		}
@@ -80,6 +91,7 @@ export const useUploadManager = () => {
 			})
 			onChunkUploaded(chunk)
 		} catch (err) {
+			console.log('err', err)
 			if (chunk.retries < 3) {
 				const delay = Math.pow(2, chunk.retries) * 1000
 				chunk.retries += 1
@@ -154,11 +166,6 @@ export const useUploadManager = () => {
 		}
 	}
 
-	const removeFile = (fileId: string) => {
-		queue.current = queue.current.filter(chunk => chunk.fileId !== fileId)
-		updateFiles(filesRef.current.filter(file => file.id !== fileId))
-	}
-
 	const pauseUpload = (fileId: string) => {
 		const updated = filesRef.current.map(file =>
 			file.id === fileId ? { ...file, status: 'paused' as const } : file
@@ -184,7 +191,6 @@ export const useUploadManager = () => {
 	return {
 		enqueueFile,
 		processQueue,
-		removeFile,
 		files,
 		pauseUpload,
 		resumeUpload,

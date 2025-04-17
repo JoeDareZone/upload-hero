@@ -29,7 +29,6 @@ export default function HomeScreen() {
 		enqueueFile,
 		files,
 		processQueue,
-		removeFile,
 		pauseUpload,
 		resumeUpload,
 		cancelUpload,
@@ -185,7 +184,7 @@ export default function HomeScreen() {
 						keyExtractor={item => item.id}
 						contentContainerStyle={{ paddingBottom: 16, gap: 12 }}
 						renderItem={({ item }) => (
-							<View className='bg-white/10 p-4 rounded-xl shadow-md flex-row gap-x-6'>
+							<View className='bg-white/10 p-4 rounded-xl shadow-md flex-row gap-x-6 items-center'>
 								{item.uri && (
 									<Image
 										source={{ uri: item.uri }}
@@ -201,107 +200,105 @@ export default function HomeScreen() {
 										>
 											{item.name}
 										</Text>
+										<View className='flex-row gap-x-3'>
+											{(item.status == 'uploading' ||
+												item.status === 'paused') && (
+												<TouchableOpacity
+													onPress={() =>
+														item.status ===
+														'uploading'
+															? pauseUpload(
+																	item.id
+															  )
+															: resumeUpload(
+																	item.id
+															  )
+													}
+												>
+													<IconSymbol
+														name={
+															item.status ===
+															'uploading'
+																? 'pause'
+																: 'play'
+														}
+														size={20}
+														color='gray'
+													/>
+												</TouchableOpacity>
+											)}
+											{item.status === 'completed' ? (
+												<IconSymbol
+													name='checkmark.circle.fill'
+													size={22}
+													color='green'
+												/>
+											) : (
+												<TouchableOpacity
+													onPress={() =>
+														cancelUpload(item.id)
+													}
+												>
+													<IconSymbol
+														name='trash'
+														size={20}
+														color='red'
+													/>
+												</TouchableOpacity>
+											)}
+										</View>
+									</View>
+									<Progress.Bar
+										progress={
+											item.uploadedChunks /
+											item.totalChunks
+										}
+										width={null}
+										height={8}
+										color={
+											item.status === 'uploading'
+												? 'lightblue'
+												: item.uploadedChunks ===
+												  item.totalChunks
+												? 'green'
+												: 'grey'
+										}
+										borderWidth={0}
+										style={{ marginBottom: 16 }}
+										unfilledColor='rgba(255, 255, 255, 0.2)'
+									/>
+
+									<View className='flex-row justify-between mb-2'>
 										{item.status === 'completed' ? (
-											<Text className='text-green-400 font-semibold'>
-												✅
+											<Text className='text-gray-200'>
+												Upload Successful!
 											</Text>
 										) : (
-											<TouchableOpacity
-												onPress={() =>
-													removeFile(item.id)
-												}
-											>
-												<IconSymbol
-													name='trash'
-													size={20}
-													color='red'
-												/>
-											</TouchableOpacity>
+											<View className='flex-row gap-x-2'>
+												<Text className='text-gray-300 text-md'>
+													{convertBytesToMB(
+														item.size
+													)}{' '}
+													MB
+												</Text>
+												<Text
+													className='text-gray-400 text-sm'
+													numberOfLines={1}
+												>
+													{item.mimeType}
+												</Text>
+											</View>
 										)}
-									</View>
-									{item.status !== 'uploading' && (
-										<Progress.Bar
-											progress={
-												item.uploadedChunks /
-												item.totalChunks
-											}
-											width={null}
-											height={8}
-											color={
-												item.uploadedChunks ===
-												item.totalChunks
-													? 'green'
-													: 'lightblue'
-											}
-											borderWidth={0}
-											style={{ marginBottom: 16 }}
-											unfilledColor='rgba(255, 255, 255, 0.2)'
-										/>
-									)}
-									<View className='flex-row justify-between mb-2'>
-										<View className='flex-row gap-x-2'>
-											<Text className='text-gray-300 text-md'>
-												{convertBytesToMB(item.size)} MB
+
+										{item.status !== 'queued' && (
+											<Text className='text-gray-200'>
+												{convertUploadedChunksToPercentage(
+													item.uploadedChunks,
+													item.totalChunks
+												)}
+												%
 											</Text>
-											<Text
-												className='text-gray-400 text-sm'
-												numberOfLines={1}
-											>
-												{item.mimeType}
-											</Text>
-										</View>
-										<Text className='text-gray-400'>
-											{convertUploadedChunksToPercentage(
-												item.uploadedChunks,
-												item.totalChunks
-											)}{' '}
-											%
-										</Text>
-									</View>
-									<View className='flex-row gap-x-2 justify-end'>
-										<TouchableOpacity
-											className='flex-row items-center gap-x-2'
-											onPress={() => pauseUpload(item.id)}
-										>
-											<IconSymbol
-												name='pause'
-												size={20}
-												color='gray'
-											/>
-											<Text className='text-gray-400'>
-												Pause
-											</Text>
-										</TouchableOpacity>
-										<TouchableOpacity
-											className='flex-row items-center gap-x-2'
-											onPress={() =>
-												resumeUpload(item.id)
-											}
-										>
-											<IconSymbol
-												name='play'
-												size={20}
-												color='gray'
-											/>
-											<Text className='text-gray-400'>
-												Resume
-											</Text>
-										</TouchableOpacity>
-										<TouchableOpacity
-											className='flex-row items-center gap-x-2'
-											onPress={() =>
-												cancelUpload(item.id)
-											}
-										>
-											<IconSymbol
-												name='xmark'
-												size={20}
-												color='gray'
-											/>
-											<Text className='text-gray-400'>
-												Cancel
-											</Text>
-										</TouchableOpacity>
+										)}
 									</View>
 								</View>
 							</View>
