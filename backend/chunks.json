@@ -1,0 +1,57 @@
+[
+	{
+		"chunkIndex": 1,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_aa"
+	},
+	{
+		"chunkIndex": 2,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_ab"
+	},
+	{
+		"chunkIndex": 3,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_ac"
+	},
+	{
+		"chunkIndex": 4,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_ad"
+	},
+	{
+		"chunkIndex": 5,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_ae"
+	},
+	{
+		"chunkIndex": 6,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_af"
+	},
+	{
+		"chunkIndex": 7,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_ag"
+	},
+	{
+		"chunkIndex": 8,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_ah"
+	},
+	{
+		"chunkIndex": 9,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_ai"
+	},
+	{
+		"chunkIndex": 10,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_aj"
+	},
+	{
+		"chunkIndex": 11,
+		"uploadId": "upload-123",
+		"chunk": "/Users/joe/Desktop/demo_files/chunk_ak"
+	}
+]
