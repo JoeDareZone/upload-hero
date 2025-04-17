@@ -1,3 +1,4 @@
+import { IconSymbol } from '@/components/ui/IconSymbol'
 import { useUploadManager } from '@/hooks/useUploadManager'
 import { UploadFile } from '@/types/fileType'
 import { CHUNK_SIZE, MAX_FILES } from '@/utils/constants'
@@ -101,7 +102,9 @@ export default function HomeScreen() {
 		disabled?: boolean
 	}) => (
 		<TouchableOpacity
-			className={`${disabled ? 'bg-gray-500' : 'bg-blue-600'} p-4 rounded-xl mb-4 min-w-40 min-h-14 shadow-md active:opacity-80`}
+			className={`${
+				disabled ? 'bg-gray-500' : 'bg-blue-600'
+			} p-4 rounded-xl mb-4 min-w-40 min-h-14 shadow-md active:opacity-80`}
 			onPress={onPress}
 			disabled={disabled}
 			style={{ opacity: isLoading ? 0.5 : 1 }}
@@ -119,16 +122,40 @@ export default function HomeScreen() {
 	return (
 		<SafeAreaView className='flex-1 bg-gray-900 p-4'>
 			<View className='m-4'>
-				<ActionButton
+				<TouchableOpacity
 					onPress={handlePickDocuments}
+					className=' min-h-48 my-4 justify-center items-center bg-gray-800 py-10 rounded-xl'
+				>
+					{isLoading ? (
+						<ActivityIndicator size='large' color='#fff' />
+					) : (
+						<View className='items-center gap-y-2'>
+							<IconSymbol
+								name='doc.badge.arrow.up.fill'
+								size={32}
+								color='white'
+							/>
+							<Text className='text-white text-lg font-semibold'>
+								Press here to upload files
+							</Text>
+							<Text className='text-gray-300 text-sm'>
+								Supported formats: JPG, PNG (up to 10MB)
+							</Text>
+						</View>
+					)}
+				</TouchableOpacity>
+				{/* <View className='flex-row justify-between items-center'>
+					<ActionButton
+						onPress={handlePickDocuments}
 					label='Pick files'
 					disabled={isLoading}
 				/>
 				<ActionButton
 					onPress={handleTakePhoto}
 					label='Take photo'
-					disabled={isLoading}
-				/>
+						disabled={isLoading}
+					/>
+				</View> */}
 				{errors.length > 0 && (
 					<View className='bg-yellow-400 p-3 rounded-xl mb-6 w-full shadow-sm'>
 						{errors.map((error, idx) => (
@@ -142,10 +169,6 @@ export default function HomeScreen() {
 					</View>
 				)}
 
-				{/* Upload queue */}
-				<Text className='text-white text-lg font-semibold mb-2'>
-					Uploads
-				</Text>
 				<FlatList
 					data={files}
 					keyExtractor={item => item.id}
@@ -189,10 +212,10 @@ export default function HomeScreen() {
 								</Text>
 
 								{/* {item.status === 'uploading' && ( */}
-									<Text className='text-gray-400'>
-										Progress: {item.uploadedChunks} /{' '}
-										{item.totalChunks}
-									</Text>
+								<Text className='text-gray-400'>
+									Progress: {item.uploadedChunks} /{' '}
+									{item.totalChunks}
+								</Text>
 								{/* )} */}
 
 								{item.status === 'completed' && (
@@ -205,7 +228,6 @@ export default function HomeScreen() {
 					)}
 				/>
 			</View>
-			{/* {hasQueuedFiles && ( */}
 			<View className='m-4'>
 				<ActionButton
 					onPress={handleUploadSelectedFiles}
@@ -213,7 +235,6 @@ export default function HomeScreen() {
 					disabled={!hasQueuedFiles}
 				/>
 			</View>
-			{/* )} */}
 		</SafeAreaView>
 	)
 }
