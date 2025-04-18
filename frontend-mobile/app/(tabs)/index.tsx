@@ -32,6 +32,7 @@ export default function HomeScreen() {
 		pauseUpload,
 		resumeUpload,
 		cancelUpload,
+		isUploading,
 	} = useUploadManager()
 	const [errors, setErrors] = useState<string[]>([])
 	const [isLoading, setIsLoading] = useState(false)
@@ -52,6 +53,8 @@ export default function HomeScreen() {
 	const handleUploadSelectedFiles = () => processQueue()
 
 	const handlePickDocuments = async () => {
+		if (isUploading) return
+
 		setErrors([])
 		setIsLoading(true)
 		try {
@@ -125,14 +128,14 @@ export default function HomeScreen() {
 				disabled ? 'bg-gray-500' : 'bg-blue-600'
 			} p-4 rounded-xl mb-4 min-w-40 min-h-14 shadow-md active:opacity-80`}
 			onPress={onPress}
-			disabled={disabled}
-			style={{ opacity: isLoading ? 0.5 : 1 }}
+			disabled={disabled || isUploading}
+			style={{ opacity: isLoading || isUploading || disabled ? 0.5 : 1 }}
 		>
 			{isLoading ? (
 				<ActivityIndicator size='small' color='#fff' />
 			) : (
 				<Text className='text-white text-center text-lg font-medium'>
-					{label}
+					{isUploading && label === 'Upload' ? 'Uploading...' : label}
 				</Text>
 			)}
 		</TouchableOpacity>
@@ -144,6 +147,8 @@ export default function HomeScreen() {
 				<TouchableOpacity
 					onPress={handlePickDocuments}
 					className=' min-h-48 my-4 justify-center items-center bg-gray-800 py-10 rounded-xl'
+					disabled={isUploading || isLoading}
+					style={{ opacity: isUploading || isLoading ? 0.5 : 1 }}
 				>
 					{isLoading ? (
 						<ActivityIndicator size='large' color='#fff' />
@@ -152,10 +157,12 @@ export default function HomeScreen() {
 							<IconSymbol
 								name='doc.badge.arrow.up.fill'
 								size={32}
-								color='white'
+								color={isUploading ? 'gray' : 'white'}
 							/>
 							<Text className='text-white text-lg font-semibold'>
-								Press here to upload files
+								{isUploading
+									? 'Upload in progress...'
+									: 'Press here to upload files'}
 							</Text>
 							<Text className='text-gray-300 text-sm'>
 								Supported formats: JPG, PNG (up to 10MB)
@@ -336,7 +343,7 @@ export default function HomeScreen() {
 				<ActionButton
 					onPress={handleUploadSelectedFiles}
 					label='Upload'
-					disabled={!hasQueuedFiles}
+					disabled={!hasQueuedFiles || isUploading}
 				/>
 			</View>
 		</SafeAreaView>

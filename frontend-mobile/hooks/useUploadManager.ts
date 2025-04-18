@@ -10,6 +10,7 @@ export const useUploadManager = () => {
 	const activeUploads = useRef(0)
 	const fileQueue = useRef<UploadFile[]>([])
 	const activeFileUploads = useRef<Record<string, boolean>>({})
+	const [isUploading, setIsUploading] = useState(false)
 
 	const updateFiles = (updated: UploadFile[]) => {
 		filesRef.current = updated
@@ -31,6 +32,7 @@ export const useUploadManager = () => {
 	}
 
 	const processQueue = () => {
+		setIsUploading(true)
 		while (
 			activeUploads.current < MAX_CONCURRENT_UPLOADS &&
 			fileQueue.current.length > 0
@@ -44,6 +46,10 @@ export const useUploadManager = () => {
 
 			startFileUpload(file)
 		}
+
+		if (activeUploads.current === 0) {
+			setIsUploading(false)
+		}
 	}
 
 	const startFileUpload = async (file: UploadFile) => {
@@ -51,6 +57,7 @@ export const useUploadManager = () => {
 
 		activeUploads.current += 1
 		activeFileUploads.current[file.id] = true
+		setIsUploading(true)
 
 		updateFiles(
 			filesRef.current.map(f =>
@@ -118,6 +125,11 @@ export const useUploadManager = () => {
 		} finally {
 			activeUploads.current -= 1
 			activeFileUploads.current[file.id] = false
+
+			if (activeUploads.current === 0) {
+				setIsUploading(false)
+			}
+
 			processQueue()
 		}
 	}
@@ -163,5 +175,6 @@ export const useUploadManager = () => {
 		pauseUpload,
 		resumeUpload,
 		cancelUpload,
+		isUploading,
 	}
 }
