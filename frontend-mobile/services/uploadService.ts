@@ -1,5 +1,9 @@
 import { UploadChunk, UploadFile } from '@/types/fileType'
 import axios from 'axios'
+import { Platform } from 'react-native'
+
+const API_BASE_URL =
+	Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000'
 
 export const uploadChunk = async (chunk: UploadChunk) => {
 	const formData = new FormData()
@@ -12,7 +16,7 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 	formData.append('chunkIndex', chunk.chunkIndex.toString())
 
 	try {
-		await axios.post('http://localhost:4000/upload-chunk', formData, {
+		await axios.post(`${API_BASE_URL}/upload-chunk`, formData, {
 			headers: {
 				'Content-Type': 'multipart/form-data',
 			},
@@ -25,7 +29,7 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 
 export const finalizeUpload = async (file: UploadFile): Promise<void> => {
 	try {
-		await axios.post('http://localhost:4000/finalize-upload', {
+		await axios.post(`${API_BASE_URL}/finalize-upload`, {
 			uploadId: file.id,
 			totalChunks: file.totalChunks,
 			fileName: file.name,
