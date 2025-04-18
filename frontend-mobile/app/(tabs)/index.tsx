@@ -38,6 +38,16 @@ export default function HomeScreen() {
 
 	const hasQueuedFiles = files.some(file => file.status === 'queued')
 
+	const totalUploadedChunks = files.reduce(
+		(sum, file) => sum + file.uploadedChunks,
+		0
+	)
+	const totalChunks = files.reduce((sum, file) => sum + file.totalChunks, 0)
+	const overallUploadProgress =
+		totalChunks > 0 ? totalUploadedChunks / totalChunks : 0
+
+	const isAllFilesUploaded = overallUploadProgress === 1
+
 	const handleError = (msg: string) => setErrors([msg])
 	const handleUploadSelectedFiles = () => processQueue()
 
@@ -175,6 +185,24 @@ export default function HomeScreen() {
 								{error}
 							</Text>
 						))}
+					</View>
+				)}
+
+				{totalChunks > 0 && (
+					<View className='mb-4'>
+						<Text className='text-gray-200 text-base font-semibold mb-2'>
+							{isAllFilesUploaded
+								? 'All files uploaded successfully!'
+								: 'Overall Progress'}
+						</Text>
+						<Progress.Bar
+							progress={overallUploadProgress}
+							width={null}
+							height={10}
+							color={isAllFilesUploaded ? 'green' : 'lightblue'}
+							borderWidth={0}
+							unfilledColor='rgba(255,255,255,0.1)'
+						/>
 					</View>
 				)}
 
