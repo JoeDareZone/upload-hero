@@ -2,7 +2,7 @@ import { Router } from 'express'
 import fs from 'fs-extra'
 import multer from 'multer'
 import path from 'path'
-import { FINAL_DIR, UPLOAD_DIR } from '../constants'
+import { UPLOAD_DIR, getUserStoragePath } from '../constants'
 import { reassembleFile } from '../controllers/finalizeUpload'
 
 const router = Router()
@@ -47,7 +47,7 @@ router.post('/upload-chunk', upload.single('chunk'), async (req, res) => {
 })
 
 router.post('/finalize-upload', async (req, res) => {
-	const { uploadId, totalChunks, fileName, mimeType } = req.body
+	const { uploadId, totalChunks, fileName, mimeType, userId } = req.body
 
 	if (!uploadId || !totalChunks || !fileName) {
 		res.status(400).json({
@@ -68,7 +68,17 @@ router.post('/finalize-upload', async (req, res) => {
 			mimeType
 		)
 
-		const finalFileDest = path.join(FINAL_DIR, fileName)
+		// Generate organized storage path based on user and date
+		const userStoragePath = getUserStoragePath(userId)
+		await fs.ensureDir(userStoragePath)
+
+		// Add timestamp to filename to prevent collisions
+		const timestamp = Date.now()
+		const fileExt = path.extname(fileName)
+		const fileBaseName = path.basename(fileName, fileExt)
+		const uniqueFileName = `${fileBaseName}_${timestamp}${fileExt}`
+
+		const finalFileDest = path.join(userStoragePath, uniqueFileName)
 		await fs.move(finalFilePath, finalFileDest)
 
 		await fs.remove(uploadDir)
