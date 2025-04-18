@@ -1,6 +1,5 @@
 import { UploadChunk, UploadFile } from '@/types/fileType'
 import axios from 'axios'
-import * as FileSystem from 'expo-file-system'
 
 export const uploadChunk = async (chunk: UploadChunk) => {
 	const formData = new FormData()
@@ -36,22 +35,5 @@ export const finalizeUpload = async (file: UploadFile): Promise<void> => {
 		throw new Error(
 			`❌ Finalize upload failed for file: ${file.name}, Error: ${err}`
 		)
-	}
-}
-
-export const readChunk = async (
-	uri: string,
-	start: number,
-	end: number
-): Promise<string> => {
-	try {
-		const result = await FileSystem.readAsStringAsync(uri, {
-			encoding: FileSystem.EncodingType.Base64,
-			position: start,
-			length: end - start,
-		})
-		return result
-	} catch (error) {
-		throw new Error('Failed to read file chunk', { cause: error })
 	}
 }
