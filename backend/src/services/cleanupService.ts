@@ -3,17 +3,9 @@ import schedule from 'node-schedule'
 import path from 'path'
 import { FILE_RETENTION_PERIOD, UPLOAD_DIR } from '../constants'
 
-/**
- * Cleanup service that scans the upload directory and removes incomplete uploads
- * that are older than the specified retention period (default: 30 minutes)
- */
 class CleanupService {
 	private job: schedule.Job | null = null
 
-	/**
-	 * Start the cleanup service with a scheduled job
-	 * Runs every 5 minutes by default
-	 */
 	start(cronSchedule = '*/5 * * * *') {
 		console.log('Starting upload cleanup service...')
 
@@ -32,9 +24,6 @@ class CleanupService {
 		})
 	}
 
-	/**
-	 * Stop the cleanup service
-	 */
 	stop() {
 		if (this.job) {
 			this.job.cancel()
@@ -43,12 +32,7 @@ class CleanupService {
 		}
 	}
 
-	/**
-	 * Clean up incomplete uploads that are older than the retention period
-	 * @returns The number of uploads cleaned up
-	 */
 	async cleanupIncompleteUploads(): Promise<number> {
-		// Skip if upload dir doesn't exist
 		if (!fs.existsSync(UPLOAD_DIR)) {
 			return 0
 		}
@@ -58,7 +42,6 @@ class CleanupService {
 		let removedCount = 0
 
 		for (const file of files) {
-			// Skip the 'final' directory
 			if (file === 'final') {
 				continue
 			}
@@ -68,7 +51,6 @@ class CleanupService {
 			try {
 				const stats = fs.statSync(filePath)
 
-				// Check if directory and if it's older than the retention period
 				if (
 					stats.isDirectory() &&
 					now - stats.mtimeMs > FILE_RETENTION_PERIOD
