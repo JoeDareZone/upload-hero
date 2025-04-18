@@ -1,0 +1,46 @@
+# Node dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# Debug logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS system files
+.DS_Store
+
+# PEM files
+*.pem
+
+# Local environment files
+.env*
+.env*.local
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Example app config
+app-example
+
+# Backend uploads (ignore uploaded files + folders)
+backend/uploads/
+
+# Keep an empty uploads folder in repo
+!backend/uploads/.gitkeep
