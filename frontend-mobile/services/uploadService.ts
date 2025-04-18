@@ -27,17 +27,59 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 	}
 }
 
-export const finalizeUpload = async (file: UploadFile): Promise<void> => {
+export type FinalizeResult = {
+	success: boolean
+	isDuplicate: boolean
+	message: string
+}
+
+export const finalizeUpload = async (
+	file: UploadFile
+): Promise<FinalizeResult> => {
 	try {
-		await axios.post(`${API_BASE_URL}/finalize-upload`, {
+		const response = await axios.post(`${API_BASE_URL}/finalize-upload`, {
 			uploadId: file.id,
 			totalChunks: file.totalChunks,
 			fileName: file.name,
 		})
-		console.log(`✅ Finalized upload: ${file.name}`)
+
+		if (response.data.isDuplicate) {
+			console.log(`⚠️ Duplicate file detected: ${file.name}`)
+			return {
+				success: false,
+				isDuplicate: true,
+				message: 'File already exists',
+			}
+		} else {
+			console.log(`✅ Finalized upload: ${file.name}`)
+			return {
+				success: true,
+				isDuplicate: false,
+				message: 'Upload completed successfully',
+			}
+		}
 	} catch (err) {
-		throw new Error(
-			`❌ Finalize upload failed for file: ${file.name}, Error: ${err}`
-		)
+		const errorMessage = `❌ Finalize upload failed for file: ${file.name}, Error: ${err}`
+		console.error(errorMessage)
+		return {
+			success: false,
+			isDuplicate: false,
+			message: errorMessage,
+		}
+	}
+}
+
+export const checkFileMD5 = async (file: UploadFile): Promise<boolean> => {
+	try {
+		const response = await axios.post(`${API_BASE_URL}/check-duplicate`, {
+			fileName: file.name,
+			fileSize: file.size,
+			mimeType: file.mimeType,
+		})
+
+		return response.data.isDuplicate || false
+	} catch (error) {
+		console.error('Error checking file MD5:', error)
+		return false
 	}
 }

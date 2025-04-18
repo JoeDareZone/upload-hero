@@ -2,6 +2,7 @@ import fs from 'fs'
 import schedule from 'node-schedule'
 import path from 'path'
 import { FILE_RETENTION_PERIOD, UPLOAD_DIR } from '../constants'
+import { cleanupOldChecksums } from '../models/FileChecksum'
 
 class CleanupService {
 	private job: schedule.Job | null = null
@@ -10,11 +11,14 @@ class CleanupService {
 		console.log('Starting upload cleanup service...')
 
 		this.job = schedule.scheduleJob(cronSchedule, () => {
-			this.cleanupIncompleteUploads()
-				.then(removedCount => {
-					if (removedCount > 0) {
+			Promise.all([
+				this.cleanupIncompleteUploads(),
+				this.cleanupOldFiles(),
+			])
+				.then(([incompletesRemoved, oldFilesRemoved]) => {
+					if (incompletesRemoved > 0 || oldFilesRemoved > 0) {
 						console.log(
-							`Cleaned up ${removedCount} incomplete uploads`
+							`Cleaned up ${incompletesRemoved} incomplete uploads and ${oldFilesRemoved} old files`
 						)
 					}
 				})
@@ -65,8 +69,16 @@ class CleanupService {
 
 		return removedCount
 	}
+
+	async cleanupOldFiles(): Promise<number> {
+		try {
+			const retentionDays = FILE_RETENTION_PERIOD / (24 * 60 * 60 * 1000)
+			return await cleanupOldChecksums(retentionDays)
+		} catch (error) {
+			console.error('Error cleaning up old files:', error)
+			return 0
+		}
+	}
 }
 
-export const cleanupService = new CleanupService()
-
-export default cleanupService
+export default new CleanupService()

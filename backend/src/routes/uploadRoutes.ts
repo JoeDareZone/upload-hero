@@ -1,54 +1,55 @@
-import { Router } from 'express'
+import crypto from 'crypto'
+import { Request, Response, Router } from 'express'
 import fs from 'fs-extra'
 import multer from 'multer'
 import path from 'path'
 import { UPLOAD_DIR, getUserStoragePath } from '../constants'
 import { reassembleFile } from '../controllers/finalizeUpload'
+import { findFileByChecksum, storeFileChecksum } from '../models/FileChecksum'
 
 const router = Router()
-
 const upload = multer({ dest: 'uploads/' })
 
-router.post('/upload-chunk', upload.single('chunk'), async (req, res) => {
-	console.log('Received chunk:', req.file)
+router.post(
+	'/upload-chunk',
+	upload.single('chunk'),
+	async (req: Request, res: Response) => {
+		const { uploadId, chunkIndex } = req.body
+		if (!uploadId || chunkIndex === undefined) {
+			res.status(400).json({
+				success: false,
+				message: 'Missing uploadId or chunkIndex',
+			})
+			return
+		}
 
-	const { uploadId, chunkIndex } = req.body
+		const uploadDir = path.join(UPLOAD_DIR, uploadId)
+		await fs.ensureDir(uploadDir)
 
-	if (!uploadId || chunkIndex === undefined) {
-		res.status(400).json({
-			success: false,
-			message: 'Missing uploadId or chunkIndex',
-		})
-		return
-	}
+		if (!req.file) {
+			res.status(400).json({
+				success: false,
+				message: 'No chunk file received',
+			})
+			return
+		}
 
-	const uploadDir = path.join(UPLOAD_DIR, uploadId)
-	await fs.ensureDir(uploadDir)
-
-	if (req.file) {
 		const destPath = path.join(uploadDir, `chunk_${chunkIndex}`)
-
-		// If destination exists already, remove it first (for resume case)
 		if (await fs.pathExists(destPath)) {
 			await fs.remove(destPath)
 		}
-
 		await fs.move(req.file.path, destPath)
+
 		res.json({
 			success: true,
 			message: `Chunk ${chunkIndex} received.`,
 		})
-	} else {
-		res.status(400).json({
-			success: false,
-			message: 'No chunk file received',
-		})
 	}
-})
+)
 
-router.post('/finalize-upload', async (req, res) => {
+// @ts-ignore - Express type definition issue
+router.post('/finalize-upload', async (req: Request, res: Response) => {
 	const { uploadId, totalChunks, fileName, mimeType, userId } = req.body
-
 	if (!uploadId || !totalChunks || !fileName) {
 		res.status(400).json({
 			success: false,
@@ -68,34 +69,45 @@ router.post('/finalize-upload', async (req, res) => {
 			mimeType
 		)
 
-		// Generate organized storage path based on user and date
-		const userStoragePath = getUserStoragePath(userId)
-		await fs.ensureDir(userStoragePath)
+		const buffer = await fs.readFile(finalFilePath)
+		const md5 = crypto.createHash('md5').update(buffer).digest('hex')
 
-		// Add timestamp to filename to prevent collisions
-		const timestamp = Date.now()
-		const fileExt = path.extname(fileName)
-		const fileBaseName = path.basename(fileName, fileExt)
-		const uniqueFileName = `${fileBaseName}_${timestamp}${fileExt}`
+		const existing = await findFileByChecksum(md5, userId || 'anonymous')
 
-		const finalFileDest = path.join(userStoragePath, uniqueFileName)
-		await fs.move(finalFilePath, finalFileDest)
+		if (existing) {
+			await fs.remove(finalFilePath)
+			await fs.remove(uploadDir)
+			return res.json({
+				success: true,
+				message: 'File already exists',
+				filePath: existing,
+				isDuplicate: true,
+			})
+		}
 
+		const userPath = getUserStoragePath(userId)
+		await fs.ensureDir(userPath)
+
+		const ext = path.extname(fileName)
+		const base = path.basename(fileName, ext)
+		const unique = `${base}_${md5}${ext}`
+		const dest = path.join(userPath, unique)
+		await fs.move(finalFilePath, dest)
+
+		await storeFileChecksum(md5, dest, userId || 'anonymous')
 		await fs.remove(uploadDir)
 
-		res.json({
+		return res.json({
 			success: true,
 			message: 'Upload finalized successfully.',
-			filePath: finalFileDest,
+			filePath: dest,
+			checksum: md5,
 		})
-	} catch (error) {
-		console.error('Error finalizing upload:', error)
-		res.status(500).json({
+	} catch (err) {
+		console.error('Error in finalize-upload:', err)
+		return res.status(500).json({
 			success: false,
-			message:
-				error instanceof Error
-					? error.message
-					: 'Error finalizing upload',
+			message: err instanceof Error ? err.message : 'Unknown error',
 		})
 	}
 })
