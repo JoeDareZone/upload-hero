@@ -1,3 +1,4 @@
+import AndroidActionSheet from '@/components/ui/AndroidActionSheet'
 import { IconSymbol } from '@/components/ui/IconSymbol'
 import { useUploadManager } from '@/hooks/useUploadManager'
 import { UploadFile } from '@/types/fileType'
@@ -14,9 +15,11 @@ import {
 } from '@/utils/helpers'
 import { useState } from 'react'
 import {
+	ActionSheetIOS,
 	ActivityIndicator,
 	FlatList,
 	Image,
+	Platform,
 	SafeAreaView,
 	Text,
 	TouchableOpacity,
@@ -36,6 +39,8 @@ export default function HomeScreen() {
 	} = useUploadManager()
 	const [errors, setErrors] = useState<string[]>([])
 	const [isLoading, setIsLoading] = useState(false)
+	const [androidActionSheetVisible, setAndroidActionSheetVisible] =
+		useState(false)
 
 	const hasQueuedFiles = files.some(file => file.status === 'queued')
 
@@ -114,6 +119,37 @@ export default function HomeScreen() {
 		}
 	}
 
+	const showActionSheet = () => {
+		if (Platform.OS === 'ios') {
+			ActionSheetIOS.showActionSheetWithOptions(
+				{
+					options: ['Cancel', 'Choose from Library', 'Take Photo'],
+					cancelButtonIndex: 0,
+				},
+				buttonIndex => {
+					if (buttonIndex === 1) {
+						handlePickDocuments()
+					} else if (buttonIndex === 2) {
+						handleTakePhoto()
+					}
+				}
+			)
+		} else {
+			setAndroidActionSheetVisible(true)
+		}
+	}
+
+	const actionSheetOptions = [
+		{
+			label: 'Choose from Library',
+			onPress: handlePickDocuments,
+		},
+		{
+			label: 'Take Photo',
+			onPress: handleTakePhoto,
+		},
+	]
+
 	const ActionButton = ({
 		onPress,
 		label,
@@ -145,7 +181,7 @@ export default function HomeScreen() {
 		<SafeAreaView className='flex-1 bg-gray-900 '>
 			<View className='flex-1 p-4'>
 				<TouchableOpacity
-					onPress={handlePickDocuments}
+					onPress={showActionSheet}
 					className=' min-h-48 my-4 justify-center items-center bg-gray-800 py-10 rounded-xl'
 					disabled={isUploading || isLoading}
 					style={{ opacity: isUploading || isLoading ? 0.5 : 1 }}
@@ -170,18 +206,13 @@ export default function HomeScreen() {
 						</View>
 					)}
 				</TouchableOpacity>
-				{/* <View className='flex-row justify-between items-center'>
-					<ActionButton
-						onPress={handlePickDocuments}
-					label='Pick files'
-					disabled={isLoading}
+
+				<AndroidActionSheet
+					visible={androidActionSheetVisible}
+					onClose={() => setAndroidActionSheetVisible(false)}
+					options={actionSheetOptions}
 				/>
-				<ActionButton
-					onPress={handleTakePhoto}
-					label='Take photo'
-						disabled={isLoading}
-					/>
-				</View> */}
+
 				{errors.length > 0 && (
 					<View className='bg-yellow-400 p-3 rounded-xl mb-6 w-full shadow-sm'>
 						{errors.map((error, idx) => (
