@@ -1,5 +1,5 @@
 import { finalizeUpload, uploadChunk } from '@/services/uploadService'
-import { UploadChunk, UploadFile } from '@/types/fileType'
+import { UploadFile } from '@/types/fileType'
 import { createChunks } from '@/utils/chunkUtils'
 import { CHUNK_SIZE, MAX_CONCURRENT_UPLOADS } from '@/utils/constants'
 import { useRef, useState } from 'react'
@@ -8,28 +8,23 @@ export const useUploadManager = () => {
 	const filesRef = useRef<UploadFile[]>([])
 	const [files, setFiles] = useState<UploadFile[]>([])
 	const activeUploads = useRef(0)
-	const queue = useRef<UploadChunk[]>([])
+	const fileQueue = useRef<UploadFile[]>([])
+	const activeFileUploads = useRef<Record<string, boolean>>({})
 
 	const updateFiles = (updated: UploadFile[]) => {
 		filesRef.current = updated
 		setFiles(updated)
 	}
 
-	const isUploadable = (fileId: string) => {
-		const file = filesRef.current.find(f => f.id === fileId)
-		return file && file.status === 'uploading'
-	}
-
 	const enqueueFile = (file: UploadFile) => {
-		const chunks = createChunks(file)
-		queue.current.push(...chunks)
+		fileQueue.current.push(file)
 
 		updateFiles([
 			...filesRef.current,
 			{
 				...file,
 				status: 'queued',
-				totalChunks: chunks.length,
+				totalChunks: Math.ceil(file.size / CHUNK_SIZE),
 				uploadedChunks: 0,
 			},
 		])
@@ -38,91 +33,92 @@ export const useUploadManager = () => {
 	const processQueue = () => {
 		while (
 			activeUploads.current < MAX_CONCURRENT_UPLOADS &&
-			queue.current.length > 0
+			fileQueue.current.length > 0
 		) {
-			const chunk = queue.current.shift()
-			if (!chunk) continue
+			const nextFile = fileQueue.current.shift()
+			if (!nextFile) continue
 
-			const file = filesRef.current.find(f => f.id === chunk.fileId)
+			const file = filesRef.current.find(f => f.id === nextFile.id)
 			if (!file || ['paused', 'error', 'completed'].includes(file.status))
 				continue
 
-			updateFiles(
-				filesRef.current.map(f =>
-					f.id === chunk.fileId ? { ...f, status: 'uploading' } : f
-				)
-			)
-
-			startChunkUpload(chunk)
+			startFileUpload(file)
 		}
 	}
 
-	const startChunkUpload = async (chunk: UploadChunk) => {
-		if (!isUploadable(chunk.fileId)) return
+	const startFileUpload = async (file: UploadFile) => {
+		if (activeFileUploads.current[file.id]) return
 
 		activeUploads.current += 1
+		activeFileUploads.current[file.id] = true
+
+		updateFiles(
+			filesRef.current.map(f =>
+				f.id === file.id ? { ...f, status: 'uploading' } : f
+			)
+		)
+
+		const chunks = createChunks(file)
 
 		try {
-			// Simulate slow network
-			await new Promise(res => setTimeout(res, 1500))
+			for (let i = 0; i < chunks.length; i++) {
+				const chunk = chunks[i]
 
-			const currentFile = filesRef.current.find(
-				f => f.id === chunk.fileId
-			)
-			if (
-				!currentFile ||
-				['paused', 'error', 'completed'].includes(currentFile.status)
-			)
-				return
+				const currentFile = filesRef.current.find(f => f.id === file.id)
+				if (
+					!currentFile ||
+					['paused', 'error', 'completed'].includes(
+						currentFile.status
+					)
+				) {
+					break
+				}
 
-			await uploadChunk(chunk)
-			onChunkUploaded(chunk)
-		} catch (err) {
-			onChunkUploadFailed(chunk, err)
+				await new Promise(res => setTimeout(res, 1500))
+
+				try {
+					await uploadChunk(chunk)
+
+					updateFiles(
+						filesRef.current.map(f => {
+							if (f.id !== file.id) return f
+
+							const uploadedChunks = f.uploadedChunks + 1
+							const isCompleted = uploadedChunks === f.totalChunks
+
+							if (isCompleted) finalizeUpload(f)
+
+							return {
+								...f,
+								uploadedChunks,
+								status: isCompleted ? 'completed' : f.status,
+							}
+						})
+					)
+				} catch (err) {
+					if (chunk.retries < 3) {
+						i--
+						chunk.retries += 1
+						await new Promise(res =>
+							setTimeout(res, Math.pow(2, chunk.retries) * 1000)
+						)
+					} else {
+						console.error(
+							`Chunk ${chunk.chunkIndex} failed after 3 retries.`
+						)
+						updateFiles(
+							filesRef.current.map(f =>
+								f.id === file.id ? { ...f, status: 'error' } : f
+							)
+						)
+						break
+					}
+				}
+			}
 		} finally {
 			activeUploads.current -= 1
+			activeFileUploads.current[file.id] = false
 			processQueue()
-		}
-	}
-
-	const onChunkUploaded = (chunk: UploadChunk) => {
-		updateFiles(
-			filesRef.current.map(file => {
-				if (file.id !== chunk.fileId) return file
-
-				const uploadedChunks = file.uploadedChunks + 1
-				const isCompleted = uploadedChunks === file.totalChunks
-
-				if (isCompleted) finalizeUpload(file)
-
-				return {
-					...file,
-					uploadedChunks,
-					status: isCompleted ? 'completed' : file.status,
-				}
-			})
-		)
-	}
-
-	const onChunkUploadFailed = (chunk: UploadChunk, err: any) => {
-		console.error('Upload error', err)
-
-		if (chunk.retries < 3) {
-			const delay = Math.pow(2, chunk.retries) * 1000
-			chunk.retries += 1
-			setTimeout(() => {
-				queue.current.unshift(chunk)
-				processQueue()
-			}, delay)
-		} else {
-			console.error(`Chunk ${chunk.chunkIndex} failed after 3 retries.`)
-			updateFiles(
-				filesRef.current.map(file =>
-					file.id === chunk.fileId
-						? { ...file, status: 'error' }
-						: file
-				)
-			)
 		}
 	}
 
@@ -137,32 +133,14 @@ export const useUploadManager = () => {
 		const file = filesRef.current.find(f => f.id === fileId)
 		if (!file) return
 
-		const existingChunkIndices = new Set(
-			queue.current
-				.filter(chunk => chunk.fileId === fileId)
-				.map(chunk => chunk.chunkIndex)
-		)
-
-		const missingChunks = Array.from(
-			{ length: file.totalChunks },
-			(_, i) => i + 1
-		)
-			.filter(
-				index =>
-					index > file.uploadedChunks &&
-					!existingChunkIndices.has(index)
+		if (!activeFileUploads.current[fileId]) {
+			const alreadyInQueue = fileQueue.current.some(
+				queuedFile => queuedFile.id === fileId
 			)
-			.map(index => ({
-				fileId,
-				chunkIndex: index,
-				start: (index - 1) * CHUNK_SIZE,
-				end: Math.min(file.size, index * CHUNK_SIZE),
-				status: 'queued',
-				retries: 0,
-				uri: file.uri,
-			})) as UploadChunk[]
-
-		queue.current.push(...missingChunks)
+			if (!alreadyInQueue) {
+				fileQueue.current.push(file)
+			}
+		}
 
 		updateFiles(
 			filesRef.current.map(f =>
@@ -174,7 +152,7 @@ export const useUploadManager = () => {
 	}
 
 	const cancelUpload = (fileId: string) => {
-		queue.current = queue.current.filter(chunk => chunk.fileId !== fileId)
+		fileQueue.current = fileQueue.current.filter(file => file.id !== fileId)
 		updateFiles(filesRef.current.filter(file => file.id !== fileId))
 	}
 

@@ -27,6 +27,12 @@ router.post('/upload-chunk', upload.single('chunk'), async (req, res) => {
 
 	if (req.file) {
 		const destPath = path.join(uploadDir, `chunk_${chunkIndex}`)
+
+		// If destination exists already, remove it first (for resume case)
+		if (await fs.pathExists(destPath)) {
+			await fs.remove(destPath)
+		}
+
 		await fs.move(req.file.path, destPath)
 		res.json({
 			success: true,
