@@ -4,6 +4,7 @@ import { FileItem } from '@/components/upload/FileItem'
 import { useUploadActionSheet } from '@/components/upload/UploadActionSheet'
 import { calculateUploadStats, useFileSelection } from '@/hooks/uploadHooks'
 import { useUploadManager } from '@/hooks/useUploadManager'
+import { MAX_FILE_SIZE_MB } from '@/utils/constants'
 import {
 	ActivityIndicator,
 	FlatList,
@@ -64,7 +65,7 @@ export default function HomeScreen() {
 									: 'Press here to upload files'}
 							</Text>
 							<Text className='text-gray-300 text-sm'>
-								Supported formats: JPG, PNG (up to 10MB)
+								Supported formats: JPG, PNG, mp4 (up to {MAX_FILE_SIZE_MB}MB)
 							</Text>
 						</View>
 					)}

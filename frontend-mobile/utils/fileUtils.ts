@@ -1,4 +1,5 @@
 import { FileType } from '@/types/fileType'
+import { MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB } from '@/utils/constants'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import * as VideoThumbnails from 'expo-video-thumbnails'
@@ -55,12 +56,12 @@ export const validateFiles = async (
 			continue
 		}
 
-		// if (file.size && file.size > MAX_FILE_SIZE_BYTES) {
-		// 	errors.push(
-		// 		`${file.name} exceeds the ${MAX_FILE_SIZE_MB}MB size limit.`
-		// 	)
-		// 	continue
-		// }
+		if (file.size && file.size > MAX_FILE_SIZE_BYTES) {
+			errors.push(
+				`${file.name} exceeds the ${MAX_FILE_SIZE_MB}MB size limit.`
+			)
+			continue
+		}
 
 		let thumbnailUri: string | undefined = undefined
 		if (file.mimeType?.startsWith('video/')) {
