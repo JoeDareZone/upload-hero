@@ -52,7 +52,8 @@ export const reassembleFile = async (
 	})
 
 	if (expectedMimeType) {
-		const detectedType = await fileType.fromFile(finalFilePath)
+		const buffer = fs.readFileSync(finalFilePath)
+		const detectedType = await fileType.fromBuffer(buffer)
 
 		if (!detectedType) {
 			fs.unlinkSync(finalFilePath)
