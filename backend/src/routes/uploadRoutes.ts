@@ -47,7 +47,7 @@ router.post('/upload-chunk', upload.single('chunk'), async (req, res) => {
 })
 
 router.post('/finalize-upload', async (req, res) => {
-	const { uploadId, totalChunks, fileName } = req.body
+	const { uploadId, totalChunks, fileName, mimeType } = req.body
 
 	if (!uploadId || !totalChunks || !fileName) {
 		res.status(400).json({
@@ -64,7 +64,8 @@ router.post('/finalize-upload', async (req, res) => {
 		const finalFilePath = await reassembleFile(
 			uploadId,
 			totalChunks,
-			fileName
+			fileName,
+			mimeType
 		)
 
 		const finalFileDest = path.join(FINAL_DIR, fileName)
@@ -81,7 +82,10 @@ router.post('/finalize-upload', async (req, res) => {
 		console.error('Error finalizing upload:', error)
 		res.status(500).json({
 			success: false,
-			message: 'Error finalizing upload',
+			message:
+				error instanceof Error
+					? error.message
+					: 'Error finalizing upload',
 		})
 	}
 })

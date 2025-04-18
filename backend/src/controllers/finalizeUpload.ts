@@ -1,3 +1,4 @@
+import fileType from 'file-type'
 import fs from 'fs'
 import path from 'path'
 import { UPLOAD_DIR } from '../constants'
@@ -5,7 +6,8 @@ import { UPLOAD_DIR } from '../constants'
 export const reassembleFile = async (
 	uploadId: string,
 	totalChunks: number,
-	fileName: string
+	fileName: string,
+	expectedMimeType?: string
 ) => {
 	const tempDir = path.join(UPLOAD_DIR, uploadId)
 
@@ -44,6 +46,28 @@ export const reassembleFile = async (
 	}
 
 	writeStream.end()
+
+	await new Promise<void>(resolve => {
+		writeStream.on('finish', () => resolve())
+	})
+
+	if (expectedMimeType) {
+		const detectedType = await fileType.fromFile(finalFilePath)
+
+		if (!detectedType) {
+			fs.unlinkSync(finalFilePath)
+			throw new Error(
+				'File type validation failed: unable to detect file type'
+			)
+		}
+
+		if (detectedType.mime !== expectedMimeType) {
+			fs.unlinkSync(finalFilePath)
+			throw new Error(
+				`File type validation failed: expected ${expectedMimeType} but got ${detectedType.mime}`
+			)
+		}
+	}
 
 	chunkFiles.forEach(chunkFilePath => {
 		fs.unlinkSync(chunkFilePath)
