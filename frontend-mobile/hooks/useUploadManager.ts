@@ -78,7 +78,7 @@ export const useUploadManager = () => {
 			await uploadChunk(chunk)
 			onChunkUploaded(chunk)
 		} catch (err) {
-			handleChunkFailure(chunk, err)
+			onChunkUploadFailed(chunk, err)
 		} finally {
 			activeUploads.current -= 1
 			processQueue()
@@ -104,7 +104,7 @@ export const useUploadManager = () => {
 		)
 	}
 
-	const handleChunkFailure = (chunk: UploadChunk, err: any) => {
+	const onChunkUploadFailed = (chunk: UploadChunk, err: any) => {
 		console.error('Upload error', err)
 
 		if (chunk.retries < 3) {
