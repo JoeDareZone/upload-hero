@@ -29,7 +29,7 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 
 export type FinalizeResult = {
 	success: boolean
-	isDuplicate: boolean
+	isDuplicate?: boolean
 	message: string
 }
 
@@ -54,7 +54,6 @@ export const finalizeUpload = async (
 			console.log(`✅ Finalized upload: ${file.name}`)
 			return {
 				success: true,
-				isDuplicate: false,
 				message: 'Upload completed successfully',
 			}
 		}
@@ -63,7 +62,6 @@ export const finalizeUpload = async (
 		console.error(errorMessage)
 		return {
 			success: false,
-			isDuplicate: false,
 			message: errorMessage,
 		}
 	}
