@@ -1,4 +1,5 @@
 import { UploadChunk, UploadFile } from '@/types/fileType'
+import { getUserFriendlyErrorMessage } from '@/utils/helpers'
 import axios from 'axios'
 import { Platform } from 'react-native'
 
@@ -23,7 +24,7 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 		})
 	} catch (error) {
 		console.error('Upload chunk failed', error)
-		throw error
+		throw getUserFriendlyErrorMessage(error)
 	}
 }
 
@@ -55,7 +56,7 @@ export const finalizeUpload = async (
 		console.error(err)
 		return {
 			success: false,
-			message: String(err),
+			message: getUserFriendlyErrorMessage(err),
 		}
 	}
 }
