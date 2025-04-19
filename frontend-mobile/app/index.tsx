@@ -24,6 +24,7 @@ export default function HomeScreen() {
 		resumeUpload,
 		cancelUpload,
 		isUploading,
+		clearAllFiles,
 	} = useUploadManager()
 
 	const { errors, isLoading, handlePickDocuments, handleTakePhoto } =
@@ -47,8 +48,13 @@ export default function HomeScreen() {
 				<TouchableOpacity
 					onPress={showActionSheet}
 					className='min-h-48 my-4 justify-center items-center bg-gray-800 py-10 rounded-xl'
-					disabled={isUploading || isLoading}
-					style={{ opacity: isUploading || isLoading ? 0.5 : 1 }}
+					disabled={isUploading || isLoading || isAllFilesUploaded}
+					style={{
+						opacity:
+							isUploading || isLoading || isAllFilesUploaded
+								? 0.5
+								: 1,
+					}}
 				>
 					{isLoading ? (
 						<ActivityIndicator size='large' color='#fff' />
@@ -65,7 +71,8 @@ export default function HomeScreen() {
 									: 'Press here to upload files'}
 							</Text>
 							<Text className='text-gray-300 text-sm'>
-								Supported formats: JPG, PNG, mp4 (up to {MAX_FILE_SIZE_MB}MB)
+								Supported formats: JPG, PNG, mp4 (up to{' '}
+								{MAX_FILE_SIZE_MB}MB)
 							</Text>
 						</View>
 					)}
@@ -105,6 +112,20 @@ export default function HomeScreen() {
 				)}
 
 				<View className='flex-1'>
+					{files.length > 0 && (
+						<View className='flex-row justify-end mb-2'>
+							<TouchableOpacity
+								onPress={clearAllFiles}
+								className='bg-red-600 px-3 py-1.5 rounded-lg'
+								disabled={isUploading}
+								style={{ opacity: isUploading ? 0.5 : 1 }}
+							>
+								<Text className='text-white font-medium'>
+									Clear All
+								</Text>
+							</TouchableOpacity>
+						</View>
+					)}
 					<FlatList
 						data={files}
 						keyExtractor={item => item.id}
@@ -121,11 +142,13 @@ export default function HomeScreen() {
 				</View>
 
 				<ActionButton
-					onPress={processQueue}
-					label='Upload'
-					disabled={!hasQueuedFiles || isUploading}
+					onPress={isAllFilesUploaded ? clearAllFiles : processQueue}
+					disabled={
+						(!hasQueuedFiles || isUploading) && !isAllFilesUploaded
+					}
 					isLoading={isLoading}
 					isUploading={isUploading}
+					isAllFilesUploaded={isAllFilesUploaded}
 				/>
 			</View>
 		</SafeAreaView>

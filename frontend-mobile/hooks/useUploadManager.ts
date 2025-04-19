@@ -191,6 +191,15 @@ export const useUploadManager = () => {
 		updateFiles(filesRef.current.filter(file => file.id !== fileId))
 	}
 
+	const clearAllFiles = () => {
+		// Clear all queues and reset state
+		fileQueue.current = []
+		activeFileUploads.current = {}
+		activeUploads.current = 0
+		updateFiles([])
+		setIsUploading(false)
+	}
+
 	return {
 		enqueueFile,
 		processQueue,
@@ -199,5 +208,6 @@ export const useUploadManager = () => {
 		resumeUpload,
 		cancelUpload,
 		isUploading,
+		clearAllFiles,
 	}
 }
