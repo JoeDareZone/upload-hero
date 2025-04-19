@@ -81,6 +81,7 @@ export const useUploadManager = () => {
 					break
 				}
 
+				// TODO: Remove this delay, it's an artificial delay to test the upload
 				await new Promise(res => setTimeout(res, 1500))
 
 				try {
