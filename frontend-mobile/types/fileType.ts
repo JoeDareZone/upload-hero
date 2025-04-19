@@ -13,7 +13,6 @@ type UploadStatus =
 	| 'completed'
 	| 'error'
 	| 'cancelled'
-	| 'duplicate'
 
 export type UploadFile = FileType & {
 	id: string

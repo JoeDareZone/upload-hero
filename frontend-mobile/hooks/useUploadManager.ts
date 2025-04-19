@@ -52,6 +52,77 @@ export const useUploadManager = () => {
 		}
 	}
 
+	const uploadChunkWithRetry = async (chunk: any, fileId: string) => {
+		if (filesRef.current.find(f => f.id === fileId)?.status === 'paused') {
+			return false
+		}
+
+		// Artificial delay for testing
+		// await new Promise(res => setTimeout(res, 1500))
+
+		if (filesRef.current.find(f => f.id === fileId)?.status === 'paused') {
+			return false
+		}
+
+		let attempts = 0
+		const maxRetries = 3
+
+		while (attempts <= maxRetries) {
+			try {
+				await uploadChunk(chunk)
+				return true
+			} catch (err) {
+				attempts++
+
+				if (attempts <= maxRetries) {
+					await new Promise(res =>
+						setTimeout(res, Math.pow(2, attempts) * 1000)
+					)
+
+					if (
+						filesRef.current.find(f => f.id === fileId)?.status ===
+						'paused'
+					) {
+						return false
+					}
+				} else {
+					console.error(
+						`Chunk ${chunk.chunkIndex} failed after ${maxRetries} retries.`
+					)
+					updateFiles(
+						filesRef.current.map(f =>
+							f.id === fileId ? { ...f, status: 'error' } : f
+						)
+					)
+					return false
+				}
+			}
+		}
+
+		return false
+	}
+
+	const updateFileProgress = (fileId: string) => {
+		const file = filesRef.current.find(f => f.id === fileId)
+		if (!file) return false
+
+		const uploadedChunks = file.uploadedChunks + 1
+		const isCompleted = uploadedChunks === file.totalChunks
+
+		updateFiles(
+			filesRef.current.map(f => {
+				if (f.id !== fileId) return f
+				return {
+					...f,
+					uploadedChunks,
+					status: isCompleted ? 'completed' : 'uploading',
+				}
+			})
+		)
+
+		return isCompleted
+	}
+
 	const startFileUpload = async (file: UploadFile) => {
 		if (activeFileUploads.current[file.id]) return
 
@@ -81,67 +152,35 @@ export const useUploadManager = () => {
 					break
 				}
 
-				// TODO: Remove this delay, it's an artificial delay to test the upload
-				await new Promise(res => setTimeout(res, 1500))
+				// Upload the chunk with retry logic
+				const uploadSuccess = await uploadChunkWithRetry(chunk, file.id)
+				if (!uploadSuccess) break
 
-				try {
-					await uploadChunk(chunk)
+				// Update progress and check if complete
+				const isCompleted = updateFileProgress(file.id)
 
+				// If upload is complete, finalize it
+				if (isCompleted) {
 					const updatedFile = filesRef.current.find(
 						f => f.id === file.id
 					)
 					if (!updatedFile) continue
 
-					const uploadedChunks = updatedFile.uploadedChunks + 1
-					const isCompleted =
-						uploadedChunks === updatedFile.totalChunks
+					const finalizeResult = await finalizeUpload(updatedFile)
 
-					updateFiles(
-						filesRef.current.map(f => {
-							if (f.id !== file.id) return f
-							return {
-								...f,
-								uploadedChunks,
-								status: isCompleted ? 'completed' : 'uploading',
-							}
-						})
-					)
-
-					if (isCompleted) {
-						const finalizeResult = await finalizeUpload(updatedFile)
-
-						if (!finalizeResult.success) {
-							updateFiles(
-								filesRef.current.map(f =>
-									f.id === file.id
-										? {
-												...f,
-												status: 'error',
-												errorMessage:
-													finalizeResult.message,
-										  }
-										: f
-								)
-							)
-						}
-					}
-				} catch (err) {
-					if (chunk.retries < 3) {
-						i--
-						chunk.retries += 1
-						await new Promise(res =>
-							setTimeout(res, Math.pow(2, chunk.retries) * 1000)
-						)
-					} else {
-						console.error(
-							`Chunk ${chunk.chunkIndex} failed after 3 retries.`
-						)
+					if (!finalizeResult.success) {
 						updateFiles(
 							filesRef.current.map(f =>
-								f.id === file.id ? { ...f, status: 'error' } : f
+								f.id === file.id
+									? {
+											...f,
+											status: 'error',
+											errorMessage:
+												finalizeResult.message,
+									  }
+									: f
 							)
 						)
-						break
 					}
 				}
 			}

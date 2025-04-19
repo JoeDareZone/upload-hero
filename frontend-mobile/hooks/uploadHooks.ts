@@ -82,6 +82,7 @@ export const useFileSelection = (
 
 export const calculateUploadStats = (files: UploadFile[]) => {
 	const hasQueuedFiles = files.some(file => file.status === 'queued')
+	const hasErrorFiles = files.some(file => file.status === 'error')
 	const totalUploadedChunks = files.reduce(
 		(sum, file) => sum + file.uploadedChunks,
 		0
@@ -93,6 +94,7 @@ export const calculateUploadStats = (files: UploadFile[]) => {
 
 	return {
 		hasQueuedFiles,
+		hasErrorFiles,
 		totalUploadedChunks,
 		totalChunks,
 		overallUploadProgress,

@@ -37,6 +37,7 @@ export default function HomeScreen() {
 
 	const {
 		hasQueuedFiles,
+		hasErrorFiles,
 		totalChunks,
 		overallUploadProgress,
 		isAllFilesUploaded,
@@ -97,14 +98,22 @@ export default function HomeScreen() {
 					<View className='mb-4'>
 						<Text className='text-gray-200 text-base font-semibold mb-2'>
 							{isAllFilesUploaded
-								? 'All files uploaded successfully!'
+								? hasErrorFiles
+									? 'Files uploaded with errors'
+									: 'All files uploaded successfully!'
 								: 'Overall Progress'}
 						</Text>
 						<Progress.Bar
 							progress={overallUploadProgress}
 							width={null}
 							height={10}
-							color={isAllFilesUploaded ? 'green' : 'lightblue'}
+							color={
+								isAllFilesUploaded
+									? hasErrorFiles
+										? 'orange'
+										: 'green'
+									: 'lightblue'
+							}
 							borderWidth={0}
 							unfilledColor='rgba(255,255,255,0.1)'
 						/>
