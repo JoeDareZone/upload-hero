@@ -7,7 +7,6 @@ import cleanupService from './services/cleanupService'
 
 const app = express()
 
-// Ensure upload directories exist
 fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 fs.mkdirSync(FINAL_DIR, { recursive: true })
 
@@ -22,7 +21,6 @@ const server = app.listen(4000, () => {
 	cleanupService.start()
 })
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
 	console.log('SIGTERM signal received: closing HTTP server')
 	cleanupService.stop()
