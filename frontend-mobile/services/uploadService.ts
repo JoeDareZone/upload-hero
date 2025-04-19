@@ -6,6 +6,58 @@ import { Platform } from 'react-native'
 const API_BASE_URL =
 	Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000'
 
+export const initiateUpload = async (file: UploadFile): Promise<string> => {
+	try {
+		const response = await axios.post(`${API_BASE_URL}/initiate-upload`, {
+			fileName: file.name,
+			fileSize: file.size,
+			mimeType: file.mimeType,
+			userId: 'anonymous',
+		})
+
+		if (response.data.success) {
+			console.log(
+				`✅ Initiated upload: ${file.name}, ID: ${response.data.uploadId}`
+			)
+			return response.data.uploadId
+		} else {
+			throw new Error(
+				response.data.message || 'Failed to initiate upload'
+			)
+		}
+	} catch (error) {
+		console.error('Failed to initiate upload', error)
+		throw getUserFriendlyErrorMessage(error)
+	}
+}
+
+export const checkUploadStatus = async (
+	uploadId: string
+): Promise<{
+	chunksReceived: number
+	chunkIndices: number[]
+}> => {
+	try {
+		const response = await axios.get(
+			`${API_BASE_URL}/upload-status/${uploadId}`
+		)
+
+		if (response.data.success) {
+			return {
+				chunksReceived: response.data.chunksReceived,
+				chunkIndices: response.data.chunkIndices,
+			}
+		} else {
+			throw new Error(
+				response.data.message || 'Failed to check upload status'
+			)
+		}
+	} catch (error) {
+		console.error('Failed to check upload status', error)
+		throw getUserFriendlyErrorMessage(error)
+	}
+}
+
 export const uploadChunk = async (chunk: UploadChunk) => {
 	const formData = new FormData()
 	formData.append('chunk', {
@@ -41,6 +93,8 @@ export const finalizeUpload = async (
 			uploadId: file.id,
 			totalChunks: file.totalChunks,
 			fileName: file.name,
+			fileSize: file.size,
+			mimeType: file.mimeType,
 		})
 
 		if (response.data.isDuplicate) {
@@ -58,20 +112,5 @@ export const finalizeUpload = async (
 			success: false,
 			message: getUserFriendlyErrorMessage(err),
 		}
-	}
-}
-
-export const checkFileMD5 = async (file: UploadFile): Promise<boolean> => {
-	try {
-		const response = await axios.post(`${API_BASE_URL}/check-duplicate`, {
-			fileName: file.name,
-			fileSize: file.size,
-			mimeType: file.mimeType,
-		})
-
-		return response.data.isDuplicate || false
-	} catch (error) {
-		console.error('Error checking file MD5:', error)
-		return false
 	}
 }
