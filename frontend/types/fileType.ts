@@ -20,6 +20,7 @@ export type UploadFile = FileType & {
 	uploadedChunks: number
 	status: UploadStatus
 	errorMessage?: string
+	file?: File
 }
 
 export type UploadChunk = {
@@ -30,4 +31,5 @@ export type UploadChunk = {
 	status: UploadStatus
 	retries: number
 	uri: string
+	file?: File
 }

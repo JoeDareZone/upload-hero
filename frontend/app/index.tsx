@@ -58,7 +58,6 @@ export default function HomeScreen() {
 		isAllFilesUploaded,
 	} = calculateUploadStats(files)
 
-	// Web specific styles
 	const isWeb = Platform.OS === 'web'
 	const styles = StyleSheet.create({
 		webContainer: {
@@ -74,24 +73,25 @@ export default function HomeScreen() {
 		},
 	})
 
-	// Web-specific file handler
 	const handleWebFileSelect = (e: any) => {
 		if (!e.target.files || e.target.files.length === 0) return
 
 		const webFiles = Array.from(e.target.files)
 		webFiles.forEach((file: any) => {
+			const blobUrl = URL.createObjectURL(file)
+
 			const webFile = {
-				uri: URL.createObjectURL(file),
+				uri: blobUrl,
 				name: file.name,
 				mimeType: file.type,
 				size: file.size,
 				status: 'queued',
+				file: file,
 			}
 			enqueueFile(createUploadFile(webFile))
 		})
 	}
 
-	// Use different components based on platform
 	const FilesList = isWeb ? WebFilesList : NativeFilesList
 
 	return (
@@ -264,7 +264,6 @@ export default function HomeScreen() {
 	)
 }
 
-// Web-specific files list with grid layout
 const WebFilesList = ({
 	files,
 	pauseUpload,
@@ -291,7 +290,6 @@ const WebFilesList = ({
 	)
 }
 
-// Native files list with FlatList
 const NativeFilesList = ({
 	files,
 	pauseUpload,

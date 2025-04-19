@@ -60,11 +60,28 @@ export const checkUploadStatus = async (
 
 export const uploadChunk = async (chunk: UploadChunk) => {
 	const formData = new FormData()
-	formData.append('chunk', {
-		uri: chunk.uri,
-		type: 'application/octet-stream',
-		name: `chunk_${chunk.chunkIndex}`,
-	} as any)
+
+	if (Platform.OS === 'web') {
+		if (chunk.file instanceof File) {
+			formData.append('chunk', chunk.file)
+		} else {
+			try {
+				const response = await fetch(chunk.uri)
+				const blob = await response.blob()
+				formData.append('chunk', blob)
+			} catch (error) {
+				console.error('Error converting blob URL to blob:', error)
+				throw getUserFriendlyErrorMessage(error)
+			}
+		}
+	} else {
+		formData.append('chunk', {
+			uri: chunk.uri,
+			type: 'application/octet-stream',
+			name: `chunk_${chunk.chunkIndex}`,
+		} as any)
+	}
+
 	formData.append('uploadId', chunk.fileId)
 	formData.append('chunkIndex', chunk.chunkIndex.toString())
 
