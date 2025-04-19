@@ -2,8 +2,14 @@ import { useFonts } from 'expo-font'
 import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
+import { Platform } from 'react-native'
 import 'react-native-reanimated'
 import '../global.css'
+
+// Import web styles only on web platform
+if (Platform.OS === 'web') {
+	require('../web-styles.css')
+}
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync()

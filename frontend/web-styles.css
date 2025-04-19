@@ -1,0 +1,91 @@
+/* Web-specific styles for Upload Hero */
+
+/* Global web styles */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Responsive container */
+.web-container {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Improve hover states for web */
+button:hover, 
+.hover-highlight:hover,
+.web-clickable:hover {
+  cursor: pointer !important;
+  opacity: 0.9 !important;
+  transition: opacity 0.2s ease-in-out !important;
+}
+
+/* Progress bar web enhancement */
+.progress-bar-web {
+  height: 12px !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+
+/* Responsive grid layout for files list on larger screens */
+@media (min-width: 768px) {
+  .files-grid-web {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important;
+    gap: 16px !important;
+  }
+  
+  .file-item-web {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+}
+
+/* Enhanced scrollbar for web */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Add focus states for accessibility */
+:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Custom file input styling for web */
+.custom-file-input-web {
+  position: relative;
+  overflow: hidden;
+}
+
+.custom-file-input-web input[type="file"] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 100%;
+  min-height: 100%;
+  opacity: 0;
+  cursor: pointer;
+} 
