@@ -1,6 +1,5 @@
 # Node dependencies
-/frontend-mobile/node_modules/
-/backend/node_modules/
+**/node_modules/
 
 # Expo
 .expo/
@@ -25,7 +24,7 @@ yarn-debug.*
 yarn-error.*
 
 # macOS system files
-.DS_Store
+**/.DS_Store
 
 # PEM files
 *.pem
