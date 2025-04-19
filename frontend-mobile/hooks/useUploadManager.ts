@@ -87,22 +87,44 @@ export const useUploadManager = () => {
 				try {
 					await uploadChunk(chunk)
 
+					const updatedFile = filesRef.current.find(
+						f => f.id === file.id
+					)
+					if (!updatedFile) continue
+
+					const uploadedChunks = updatedFile.uploadedChunks + 1
+					const isCompleted =
+						uploadedChunks === updatedFile.totalChunks
+
 					updateFiles(
 						filesRef.current.map(f => {
 							if (f.id !== file.id) return f
-
-							const uploadedChunks = f.uploadedChunks + 1
-							const isCompleted = uploadedChunks === f.totalChunks
-
-							if (isCompleted) finalizeUpload(f)
-
 							return {
 								...f,
 								uploadedChunks,
-								status: isCompleted ? 'completed' : f.status,
+								status: isCompleted ? 'completed' : 'uploading',
 							}
 						})
 					)
+
+					if (isCompleted) {
+						const finalizeResult = await finalizeUpload(updatedFile)
+
+						if (!finalizeResult.success) {
+							updateFiles(
+								filesRef.current.map(f =>
+									f.id === file.id
+										? {
+												...f,
+												status: 'error',
+												errorMessage:
+													finalizeResult.message,
+										  }
+										: f
+								)
+							)
+						}
+					}
 				} catch (err) {
 					if (chunk.retries < 3) {
 						i--

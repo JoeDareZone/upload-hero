@@ -29,7 +29,6 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 
 export type FinalizeResult = {
 	success: boolean
-	isDuplicate?: boolean
 	message: string
 }
 
@@ -44,25 +43,19 @@ export const finalizeUpload = async (
 		})
 
 		if (response.data.isDuplicate) {
-			console.log(`⚠️ Duplicate file detected: ${file.name}`)
-			return {
-				success: false,
-				isDuplicate: true,
-				message: 'File already exists',
-			}
+			throw new Error('File already exists')
 		} else {
 			console.log(`✅ Finalized upload: ${file.name}`)
 			return {
 				success: true,
-				message: 'Upload completed successfully',
+				message: 'Upload successful',
 			}
 		}
 	} catch (err) {
-		const errorMessage = `❌ Finalize upload failed for file: ${file.name}, Error: ${err}`
-		console.error(errorMessage)
+		console.error(err)
 		return {
 			success: false,
-			message: errorMessage,
+			message: String(err),
 		}
 	}
 }

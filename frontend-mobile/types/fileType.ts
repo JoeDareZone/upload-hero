@@ -13,12 +13,14 @@ type UploadStatus =
 	| 'completed'
 	| 'error'
 	| 'cancelled'
+	| 'duplicate'
 
 export type UploadFile = FileType & {
 	id: string
 	totalChunks: number
 	uploadedChunks: number
 	status: UploadStatus
+	errorMessage?: string
 }
 
 export type UploadChunk = {

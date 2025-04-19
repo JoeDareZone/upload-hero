@@ -63,6 +63,12 @@ export const FileItem = ({
 							size={22}
 							color='green'
 						/>
+					) : item.status === 'error' ? (
+						<IconSymbol
+							name='exclamationmark.triangle.fill'
+							size={22}
+							color='orange'
+						/>
 					) : (
 						<TouchableOpacity onPress={() => cancelUpload(item.id)}>
 							<IconSymbol name='trash' size={20} color='red' />
@@ -77,6 +83,8 @@ export const FileItem = ({
 				color={
 					item.status === 'uploading'
 						? 'lightblue'
+						: item.status === 'error'
+						? 'orange'
 						: item.uploadedChunks === item.totalChunks
 						? 'green'
 						: 'grey'
@@ -89,6 +97,8 @@ export const FileItem = ({
 			<View className='flex-row justify-between mb-2'>
 				{item.status === 'completed' ? (
 					<Text className='text-gray-200'>Upload Successful!</Text>
+				) : item.status === 'error' ? (
+					<Text className='text-orange-300'>{item.errorMessage}</Text>
 				) : (
 					<View className='flex-row gap-x-2'>
 						<Text className='text-gray-300 text-md'>
