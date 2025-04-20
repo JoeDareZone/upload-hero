@@ -18,6 +18,7 @@ const MAPPING = {
 	pause: 'pause',
 	play: 'play-arrow',
 	'checkmark.circle.fill': 'check-circle',
+	'exclamationmark.triangle.fill': 'warning',
 	trash: 'delete',
 } as Partial<
 	Record<
