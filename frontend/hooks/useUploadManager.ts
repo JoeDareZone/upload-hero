@@ -159,21 +159,31 @@ export const useUploadManager = () => {
 		)
 
 		try {
-			const uploadId = await initiateUpload(file)
+			let uploadId = file.id
+			let updatedFile = file
 
-			const updatedFile = {
-				...file,
-				id: uploadId,
+			if (!uploadId || file.uploadedChunks === 0) {
+				uploadId = await initiateUpload(file)
+
+				updatedFile = {
+					...file,
+					id: uploadId,
+				}
+
+				updateFiles(
+					filesRef.current.map(f =>
+						f.id === file.id ? updatedFile : f
+					)
+				)
 			}
-
-			updateFiles(
-				filesRef.current.map(f => (f.id === file.id ? updatedFile : f))
-			)
 
 			const status = await checkUploadStatus(uploadId)
 			const uploadedChunkIndices = new Set(status.chunkIndices)
 
-			if (status.chunksReceived > 0) {
+			updatedFile =
+				filesRef.current.find(f => f.id === uploadId) || updatedFile
+
+			if (status.chunksReceived !== updatedFile.uploadedChunks) {
 				updateFiles(
 					filesRef.current.map(f =>
 						f.id === updatedFile.id
@@ -182,36 +192,38 @@ export const useUploadManager = () => {
 					)
 				)
 
-				if (status.chunksReceived === updatedFile.totalChunks) {
+				updatedFile =
+					filesRef.current.find(f => f.id === uploadId) || updatedFile
+			}
+
+			if (status.chunksReceived === updatedFile.totalChunks) {
+				updateFiles(
+					filesRef.current.map(f =>
+						f.id === updatedFile.id
+							? {
+									...f,
+									status: 'completed',
+									uploadedChunks: updatedFile.totalChunks,
+							  }
+							: f
+					)
+				)
+
+				const finalizeResult = await finalizeUpload(updatedFile)
+				if (!finalizeResult.success) {
 					updateFiles(
 						filesRef.current.map(f =>
 							f.id === updatedFile.id
 								? {
 										...f,
-										status: 'completed',
-										uploadedChunks: updatedFile.totalChunks,
+										status: 'error',
+										errorMessage: finalizeResult.message,
 								  }
 								: f
 						)
 					)
-
-					const finalizeResult = await finalizeUpload(updatedFile)
-					if (!finalizeResult.success) {
-						updateFiles(
-							filesRef.current.map(f =>
-								f.id === updatedFile.id
-									? {
-											...f,
-											status: 'error',
-											errorMessage:
-												finalizeResult.message,
-									  }
-									: f
-							)
-						)
-					}
-					return
 				}
+				return
 			}
 
 			const chunks = createChunks(updatedFile)
@@ -326,11 +338,14 @@ export const useUploadManager = () => {
 		}
 
 		if (!activeFileUploads.current[fileId]) {
+			const updatedFile = filesRef.current.find(f => f.id === fileId)
+			if (!updatedFile) return
+
 			const alreadyInQueue = fileQueue.current.some(
 				queuedFile => queuedFile.id === fileId
 			)
 			if (!alreadyInQueue) {
-				fileQueue.current.push(file)
+				fileQueue.current.push(updatedFile)
 			}
 		}
 
