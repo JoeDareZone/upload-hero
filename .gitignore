@@ -45,3 +45,12 @@ backend/uploads/
 # Keep an empty uploads folder in repo
 !backend/uploads/.gitkeep
 !backend/uploads/final/.gitkeep
+
+# Expo cache
+.expo/
+
+# Expo cache
+.expo/
+
+ios/
+android/

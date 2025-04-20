@@ -9,6 +9,7 @@ import { createChunks } from '@/utils/chunkUtils'
 import { CHUNK_SIZE, MAX_CONCURRENT_UPLOADS } from '@/utils/constants'
 import { saveToUploadHistory } from '@/utils/storageUtils'
 import { useEffect, useRef, useState } from 'react'
+import { Platform } from 'react-native'
 
 export const useUploadManager = () => {
 	const filesRef = useRef<UploadFile[]>([])
@@ -18,13 +19,13 @@ export const useUploadManager = () => {
 	const activeFileUploads = useRef<Record<string, boolean>>({})
 	const [isUploading, setIsUploading] = useState(false)
 
-	// Save to local storage when file status changes to completed
 	useEffect(() => {
-		files.forEach(file => {
-			if (file.status === 'completed') {
-				saveToUploadHistory(file)
-			}
-		})
+		Platform.OS === 'web' &&
+			files.forEach(file => {
+				if (file.status === 'completed') {
+					saveToUploadHistory(file)
+				}
+			})
 	}, [files])
 
 	const updateFiles = (updated: UploadFile[]) => {
