@@ -36,14 +36,14 @@ export const FileItem = ({
 				/>
 			)}
 			<View className='flex-1'>
-				<View className='flex-row justify-between mb-3'>
+				<View className='flex-row justify-between mb-3 pt-2 gap-x-1'>
 					<Text
 						className='text-white text-lg font-semibold'
 						numberOfLines={1}
 					>
 						{item.name}
 					</Text>
-					<View className='flex-row gap-x-3'>
+					<View className='flex-row gap-x-3 items-center'>
 						{(item.status === 'uploading' ||
 							item.status === 'paused') && (
 							<TouchableOpacity
@@ -117,7 +117,7 @@ export const FileItem = ({
 					/>
 				</View>
 
-				<View className='flex-row justify-between mb-2'>
+				<View className='flex-row justify-between mb-2 mt-2'>
 					<View className='max-w-64'>
 						{item.status === 'completed' ? (
 							<Text className='text-gray-200'>
@@ -128,7 +128,7 @@ export const FileItem = ({
 								{item.errorMessage}
 							</Text>
 						) : (
-							<View className='flex-row gap-x-2'>
+							<View className='flex-row gap-x-2 items-center justify-center'>
 								<Text className='text-gray-300 text-md'>
 									{convertBytesToMB(item.size)} MB
 								</Text>

@@ -16,12 +16,13 @@ import {
 	Platform,
 	SafeAreaView,
 	ScrollView,
-	StyleSheet,
 	Text,
 	TouchableOpacity,
 	View,
 } from 'react-native'
 import * as Progress from 'react-native-progress'
+
+import '../web-styles.css'
 
 interface FilesListProps {
 	files: UploadFile[]
@@ -59,19 +60,6 @@ export default function HomeScreen() {
 	} = calculateUploadStats(files)
 
 	const isWeb = Platform.OS === 'web'
-	const styles = StyleSheet.create({
-		webContainer: {
-			maxWidth: 1200,
-			marginHorizontal: 'auto',
-			padding: 16,
-		},
-		webCursor: {
-			cursor: 'pointer',
-		},
-		defaultCursor: {
-			cursor: 'default',
-		},
-	})
 
 	const handleWebFileSelect = (e: any) => {
 		if (!e.target.files || e.target.files.length === 0) return
@@ -94,16 +82,26 @@ export default function HomeScreen() {
 
 	const FilesList = isWeb ? WebFilesList : NativeFilesList
 
+	const onPressFileUpload = () => {
+		if (isWeb) {
+			const input = document.createElement('input')
+			input.type = 'file'
+			input.accept = 'image/jpeg,image/png,video/mp4'
+			input.multiple = true
+			input.onchange = handleWebFileSelect
+			input.click()
+		} else {
+			showActionSheet()
+		}
+	}
+
 	return (
 		<SafeAreaView className='flex-1 bg-gray-900'>
-			<View
-				className='flex-1 p-4'
-				style={isWeb ? styles.webContainer : undefined}
-			>
+			<View className={`flex-1 p-4 ${isWeb ? 'web-container' : ''}`}>
 				<TouchableOpacity
-					onPress={showActionSheet}
+					onPress={onPressFileUpload}
 					className={`min-h-48 my-4 justify-center items-center bg-gray-800 py-10 rounded-xl ${
-						isWeb ? 'hover-highlight' : ''
+						isWeb ? 'hover-highlight web-clickable' : ''
 					}`}
 					disabled={isUploading || isLoading || isAllFilesUploaded}
 					style={{
@@ -111,12 +109,6 @@ export default function HomeScreen() {
 							isUploading || isLoading || isAllFilesUploaded
 								? 0.5
 								: 1,
-						...(isWeb &&
-						!isUploading &&
-						!isLoading &&
-						!isAllFilesUploaded
-							? styles.webCursor
-							: {}),
 					}}
 				>
 					{isLoading ? (
@@ -140,36 +132,11 @@ export default function HomeScreen() {
 								{MAX_FILE_SIZE_MB}MB)
 							</Text>
 
-							{/* Web-specific file input */}
 							{isWeb && (
-								<View className='mt-4 custom-file-input-web'>
-									<TouchableOpacity
-										className='bg-blue-600 px-6 py-2 rounded-lg hover-highlight'
-										disabled={
-											isUploading ||
-											isLoading ||
-											isAllFilesUploaded
-										}
-									>
-										<Text className='text-white font-medium'>
-											Browse Files
-										</Text>
-										{/* @ts-ignore - Web-only input element */}
-										{Platform.OS === 'web' && (
-											<input
-												type='file'
-												accept='image/jpeg,image/png,video/mp4'
-												multiple
-												onChange={handleWebFileSelect}
-												style={{
-													position: 'absolute',
-													opacity: 0,
-													width: '100%',
-													height: '100%',
-												}}
-											/>
-										)}
-									</TouchableOpacity>
+								<View className='mt-4 custom-file-input-web bg-blue-600 px-6 py-2 rounded-lg hover-highlight'>
+									<Text className='text-white font-medium'>
+										Browse Files
+									</Text>
 								</View>
 							)}
 						</View>
@@ -225,14 +192,11 @@ export default function HomeScreen() {
 							<TouchableOpacity
 								onPress={clearAllFiles}
 								className={`bg-red-600 px-3 py-1.5 rounded-lg ${
-									isWeb ? 'hover-highlight' : ''
+									isWeb ? 'hover-highlight web-clickable' : ''
 								}`}
 								disabled={isUploading}
 								style={{
 									opacity: isUploading ? 0.5 : 1,
-									...(isWeb && !isUploading
-										? styles.webCursor
-										: {}),
 								}}
 							>
 								<Text className='text-white font-medium'>
@@ -273,7 +237,7 @@ const WebFilesList = ({
 	if (files.length === 0) return null
 
 	return (
-		<ScrollView style={{ flex: 1 }}>
+		<ScrollView style={{ flex: 1, padding: 10 }}>
 			<View className='files-grid-web'>
 				{files.map(item => (
 					<View key={item.id} className='file-item-web'>

@@ -1,6 +1,3 @@
-/* Web-specific styles for Upload Hero */
-
-/* Global web styles */
 html, body, #root {
   height: 100%;
   width: 100%;
@@ -9,15 +6,12 @@ html, body, #root {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Responsive container */
 .web-container {
-  max-width: 1200px;
-  width: 100%;
+  width: 60%;
   margin: 0 auto;
   padding: 0 16px;
 }
 
-/* Improve hover states for web */
 button:hover, 
 .hover-highlight:hover,
 .web-clickable:hover {
@@ -26,14 +20,16 @@ button:hover,
   transition: opacity 0.2s ease-in-out !important;
 }
 
-/* Progress bar web enhancement */
 .progress-bar-web {
   height: 12px !important;
   border-radius: 6px !important;
   overflow: hidden !important;
 }
 
-/* Responsive grid layout for files list on larger screens */
+.files-grid-web {
+  gap: 16px !important;
+}
+
 @media (min-width: 768px) {
   .files-grid-web {
     display: grid !important;
@@ -48,7 +44,6 @@ button:hover,
   }
 }
 
-/* Enhanced scrollbar for web */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -68,13 +63,6 @@ button:hover,
   background: rgba(255, 255, 255, 0.5);
 }
 
-/* Add focus states for accessibility */
-:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-/* Custom file input styling for web */
 .custom-file-input-web {
   position: relative;
   overflow: hidden;
