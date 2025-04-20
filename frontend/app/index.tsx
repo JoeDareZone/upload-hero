@@ -1,17 +1,11 @@
 import { ActionButton } from '@/components/ui/ActionButton'
-import { IconSymbol } from '@/components/ui/IconSymbol'
 import { FileItem } from '@/components/upload/FileItem'
 import { useUploadActionSheet } from '@/components/upload/UploadActionSheet'
-import {
-	calculateUploadStats,
-	createUploadFile,
-	useFileSelection,
-} from '@/hooks/uploadHooks'
+import { calculateUploadStats, useFileSelection } from '@/hooks/uploadHooks'
 import { useUploadManager } from '@/hooks/useUploadManager'
 import { UploadFile } from '@/types/fileType'
-import { MAX_FILE_SIZE_MB } from '@/utils/constants'
+import React, { useState } from 'react'
 import {
-	ActivityIndicator,
 	FlatList,
 	Platform,
 	SafeAreaView,
@@ -22,6 +16,7 @@ import {
 } from 'react-native'
 import * as Progress from 'react-native-progress'
 
+import FilePicker from '@/components/upload/FilePicker'
 import '../web-styles.css'
 
 interface FilesListProps {
@@ -43,8 +38,13 @@ export default function HomeScreen() {
 		clearAllFiles,
 	} = useUploadManager()
 
-	const { errors, isLoading, handlePickDocuments, handleTakePhoto } =
-		useFileSelection(enqueueFile, isUploading)
+	const {
+		errors,
+		isLoading,
+		handlePickDocuments,
+		handleTakePhoto,
+		clearErrors,
+	} = useFileSelection(enqueueFile, isUploading)
 
 	const { showActionSheet, ActionSheetComponent } = useUploadActionSheet({
 		onPickDocuments: handlePickDocuments,
@@ -59,95 +59,42 @@ export default function HomeScreen() {
 		isAllFilesUploaded,
 	} = calculateUploadStats(files)
 
+	const [dragDropErrors, setDragDropErrors] = useState<string[]>([])
+
+	const allErrors = [...errors, ...dragDropErrors]
 	const isWeb = Platform.OS === 'web'
-
-	const handleWebFileSelect = (e: any) => {
-		if (!e.target.files || e.target.files.length === 0) return
-
-		const webFiles = Array.from(e.target.files)
-		webFiles.forEach((file: any) => {
-			const blobUrl = URL.createObjectURL(file)
-
-			const webFile = {
-				uri: blobUrl,
-				name: file.name,
-				mimeType: file.type,
-				size: file.size,
-				status: 'queued',
-				file: file,
-			}
-			enqueueFile(createUploadFile(webFile))
-		})
-	}
-
 	const FilesList = isWeb ? WebFilesList : NativeFilesList
 
-	const onPressFileUpload = () => {
-		if (isWeb) {
-			const input = document.createElement('input')
-			input.type = 'file'
-			input.accept = 'image/jpeg,image/png,video/mp4'
-			input.multiple = true
-			input.onchange = handleWebFileSelect
-			input.click()
-		} else {
-			showActionSheet()
-		}
+	const addError = (errorMsg: string) => {
+		setDragDropErrors(prev => [...prev, errorMsg])
+	}
+	const clearDragDropErrors = () => setDragDropErrors([])
+	const onPickerError = (errorMsg: string) => addError(errorMsg)
+
+	const handleFilesSelected = (selectedFiles: UploadFile[]) => {
+		clearErrors()
+		clearDragDropErrors()
+
+		selectedFiles.forEach(file => enqueueFile(file))
 	}
 
 	return (
 		<SafeAreaView className='flex-1 bg-gray-900'>
 			<View className={`flex-1 p-4 ${isWeb ? 'web-container' : ''}`}>
-				<TouchableOpacity
-					onPress={onPressFileUpload}
-					className={`min-h-48 my-4 justify-center items-center bg-gray-800 py-10 rounded-xl ${
-						isWeb ? 'hover-highlight web-clickable' : ''
-					}`}
-					disabled={isUploading || isLoading || isAllFilesUploaded}
-					style={{
-						opacity:
-							isUploading || isLoading || isAllFilesUploaded
-								? 0.5
-								: 1,
-					}}
-				>
-					{isLoading ? (
-						<ActivityIndicator size='large' color='#fff' />
-					) : (
-						<View className='items-center gap-y-2'>
-							<IconSymbol
-								name='doc.badge.arrow.up.fill'
-								size={32}
-								color={isUploading ? 'gray' : 'white'}
-							/>
-							<Text className='text-white text-lg font-semibold'>
-								{isUploading
-									? 'Upload in progress...'
-									: isWeb
-									? 'Click here to upload files'
-									: 'Press here to upload files'}
-							</Text>
-							<Text className='text-gray-300 text-sm'>
-								Supported formats: JPG, PNG, mp4 (up to{' '}
-								{MAX_FILE_SIZE_MB}MB)
-							</Text>
-
-							{isWeb && (
-								<View className='mt-4 custom-file-input-web bg-blue-600 px-6 py-2 rounded-lg hover-highlight'>
-									<Text className='text-white font-medium'>
-										Browse Files
-									</Text>
-								</View>
-							)}
-						</View>
-					)}
-				</TouchableOpacity>
+				<FilePicker
+					onFilesSelected={handleFilesSelected}
+					isUploading={isUploading}
+					isLoading={isLoading}
+					isAllFilesUploaded={isAllFilesUploaded}
+					onError={onPickerError}
+					onPressNative={showActionSheet}
+				/>
 
 				<ActionSheetComponent />
 
-				{errors.length > 0 && (
+				{allErrors.length > 0 && (
 					<View className='bg-yellow-400 p-3 rounded-xl mb-6 w-full shadow-sm'>
-						{errors.map((error, idx) => (
+						{allErrors.map((error, idx) => (
 							<Text
 								key={idx}
 								className='text-yellow-800 font-semibold text-base'
