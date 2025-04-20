@@ -21,6 +21,7 @@ export type UploadFile = FileType & {
 	status: UploadStatus
 	errorMessage?: string
 	file?: File
+	completedAt?: string
 }
 
 export type UploadChunk = {

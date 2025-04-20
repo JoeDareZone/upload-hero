@@ -1,6 +1,7 @@
 import { ActionButton } from '@/components/ui/ActionButton'
 import { FileItem } from '@/components/upload/FileItem'
 import { useUploadActionSheet } from '@/components/upload/UploadActionSheet'
+import UploadHistory from '@/components/upload/UploadHistory'
 import { calculateUploadStats, useFileSelection } from '@/hooks/uploadHooks'
 import { useUploadManager } from '@/hooks/useUploadManager'
 import { UploadFile } from '@/types/fileType'
@@ -60,6 +61,7 @@ export default function HomeScreen() {
 	} = calculateUploadStats(files)
 
 	const [dragDropErrors, setDragDropErrors] = useState<string[]>([])
+	const [isHistoryVisible, setIsHistoryVisible] = useState(false)
 
 	const allErrors = [...errors, ...dragDropErrors]
 	const isWeb = Platform.OS === 'web'
@@ -78,9 +80,28 @@ export default function HomeScreen() {
 		selectedFiles.forEach(file => enqueueFile(file))
 	}
 
+	const showHistory = () => setIsHistoryVisible(true)
+	const hideHistory = () => setIsHistoryVisible(false)
+
 	return (
 		<SafeAreaView className='flex-1 bg-gray-900'>
 			<View className={`flex-1 p-4 ${isWeb ? 'web-container' : ''}`}>
+				<View className='flex-row justify-between items-center mb-4 mt-4'>
+					<Text className='text-white text-xl font-bold'>
+						Upload Hero
+					</Text>
+					{isWeb && (
+						<TouchableOpacity
+							onPress={showHistory}
+							className='px-3 py-1.5 bg-blue-600 rounded-lg hover-highlight web-clickable'
+						>
+							<Text className='text-white font-medium'>
+								History
+							</Text>
+						</TouchableOpacity>
+					)}
+				</View>
+
 				<FilePicker
 					onFilesSelected={handleFilesSelected}
 					isUploading={isUploading}
@@ -171,6 +192,8 @@ export default function HomeScreen() {
 					isAllFilesUploaded={isAllFilesUploaded}
 				/>
 			</View>
+
+			<UploadHistory isVisible={isHistoryVisible} onClose={hideHistory} />
 		</SafeAreaView>
 	)
 }

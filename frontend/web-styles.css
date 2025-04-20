@@ -30,6 +30,20 @@ button:hover,
   gap: 16px !important;
 }
 
+/* Modal styles */
+.web-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 1000 !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
 /* Drag and drop styles */
 .drag-active {
   border: 2px dashed #60a5fa !important;
