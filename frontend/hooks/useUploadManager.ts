@@ -6,7 +6,11 @@ import {
 } from '@/services/uploadService'
 import { UploadFile } from '@/types/fileType'
 import { createChunks } from '@/utils/chunkUtils'
-import { CHUNK_SIZE, MAX_CONCURRENT_UPLOADS } from '@/utils/constants'
+import {
+	ARTIFICIAL_DELAY,
+	CHUNK_SIZE,
+	MAX_CONCURRENT_UPLOADS,
+} from '@/utils/constants'
 import { saveToUploadHistory } from '@/utils/storageUtils'
 import { useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
@@ -74,7 +78,9 @@ export const useUploadManager = () => {
 		}
 
 		// Artificial delay for testing
-		// await new Promise(res => setTimeout(res, 1500))
+		if (ARTIFICIAL_DELAY) {
+			await new Promise(res => setTimeout(res, 1500))
+		}
 
 		if (filesRef.current.find(f => f.id === fileId)?.status === 'paused') {
 			return false

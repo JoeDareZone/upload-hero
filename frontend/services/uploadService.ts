@@ -1,6 +1,8 @@
 import { UploadChunk, UploadFile } from '@/types/fileType'
 import { getUserFriendlyErrorMessage } from '@/utils/helpers'
 import axios from 'axios'
+import * as BackgroundFetch from 'expo-background-fetch'
+import * as TaskManager from 'expo-task-manager'
 import { Platform } from 'react-native'
 
 const API_BASE_URL =
@@ -58,6 +60,25 @@ export const checkUploadStatus = async (
 	}
 }
 
+const BACKGROUND_FETCH_TASK = 'background-upload-task'
+
+TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
+	try {
+		return BackgroundFetch.BackgroundFetchResult.NewData
+	} catch (error) {
+		console.error('Error in background task', error)
+		return BackgroundFetch.BackgroundFetchResult.Failed
+	}
+})
+
+async function registerBackgroundUploadTask() {
+	await BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
+		minimumInterval: 60 * 15,
+		stopOnTerminate: false,
+		startOnBoot: true,
+	})
+}
+
 export const uploadChunk = async (chunk: UploadChunk) => {
 	const formData = new FormData()
 
@@ -71,7 +92,7 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 				formData.append('chunk', blob)
 			} catch (error) {
 				console.error('Error converting blob URL to blob:', error)
-				throw getUserFriendlyErrorMessage(error)
+				throw new Error('Error converting blob URL to blob')
 			}
 		}
 	} else {
@@ -86,14 +107,26 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 	formData.append('chunkIndex', chunk.chunkIndex.toString())
 
 	try {
-		await axios.post(`${API_BASE_URL}/upload-chunk`, formData, {
-			headers: {
-				'Content-Type': 'multipart/form-data',
-			},
-		})
+		if (Platform.OS !== 'web') {
+			await axios.post(`${API_BASE_URL}/upload-chunk`, formData, {
+				headers: {
+					'Content-Type': 'multipart/form-data',
+				},
+			})
+
+			BackgroundFetch.getStatusAsync().then(async status => {
+				if (
+					status === BackgroundFetch.BackgroundFetchStatus.Available
+				) {
+					await registerBackgroundUploadTask()
+					console.log('Background task for uploading started.')
+				}
+			})
+		}
+		console.log('Chunk uploaded successfully')
 	} catch (error) {
 		console.error('Upload chunk failed', error)
-		throw getUserFriendlyErrorMessage(error)
+		throw new Error('Upload chunk failed')
 	}
 }
 
