@@ -2,12 +2,12 @@ import { FlatList } from 'react-native'
 import { FileItem } from './FileItem'
 import { FilesListProps } from './FilesList'
 
-export const NativeFilesList = ({
+export default function NativeFilesList({
 	files,
 	pauseUpload,
 	resumeUpload,
 	cancelUpload,
-}: FilesListProps) => {
+}: FilesListProps) {
 	return (
 		<FlatList
 			data={files}

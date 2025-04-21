@@ -2,12 +2,12 @@ import { ScrollView, View } from 'react-native'
 import { FileItem } from './FileItem'
 import { FilesListProps } from './FilesList'
 
-export const WebFilesList = ({
+export default function WebFilesList({
 	files,
 	pauseUpload,
 	resumeUpload,
 	cancelUpload,
-}: FilesListProps) => {
+}: FilesListProps) {
 	if (files.length === 0) return null
 
 	return (

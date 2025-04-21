@@ -1,7 +1,7 @@
 import { ActionButton } from '@/components/ui/ActionButton'
 import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
 import FilePicker from '@/components/upload/FilePicker'
-import { FilesList } from '@/components/upload/FilesList'
+import FilesList from '@/components/upload/FilesList'
 import { useUploadActionSheet } from '@/components/upload/UploadActionSheet'
 import UploadHistory from '@/components/upload/UploadHistory'
 import { OverallProgress } from '@/components/upload/UploadProgress'

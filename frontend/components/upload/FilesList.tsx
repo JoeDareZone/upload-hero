@@ -1,8 +1,8 @@
 import { UploadFile } from '@/types/fileType'
 import React from 'react'
 import { Platform } from 'react-native'
-import { NativeFilesList } from './FilesList.native'
-import { WebFilesList } from './FilesList.web'
+import NativeFilesList from './FilesList.native'
+import WebFilesList from './FilesList.web'
 
 export interface FilesListProps {
 	files: UploadFile[]
@@ -11,31 +11,10 @@ export interface FilesListProps {
 	cancelUpload: (fileId: string) => void
 }
 
-export const FilesList = ({
-	files,
-	pauseUpload,
-	resumeUpload,
-	cancelUpload,
-}: FilesListProps) => {
-	const isWeb = Platform.OS === 'web'
-
-	if (isWeb) {
-		return (
-			<WebFilesList
-				files={files}
-				pauseUpload={pauseUpload}
-				resumeUpload={resumeUpload}
-				cancelUpload={cancelUpload}
-			/>
-		)
-	}
-
-	return (
-		<NativeFilesList
-			files={files}
-			pauseUpload={pauseUpload}
-			resumeUpload={resumeUpload}
-			cancelUpload={cancelUpload}
-		/>
+export default function FilesList(props: FilesListProps) {
+	return Platform.OS === 'web' ? (
+		<WebFilesList {...props} />
+	) : (
+		<NativeFilesList {...props} />
 	)
 }
