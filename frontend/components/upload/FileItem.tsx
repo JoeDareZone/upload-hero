@@ -120,7 +120,7 @@ export const FileItem = ({
 				<View className='flex-row justify-between mb-2 mt-2'>
 					<View className='max-w-64'>
 						{item.status === 'completed' ? (
-							<Text className='text-gray-200'>
+							<Text className='text-gray-200 mr-1'>
 								Upload Successful!
 							</Text>
 						) : item.status === 'error' ? (

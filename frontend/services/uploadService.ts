@@ -82,51 +82,47 @@ async function registerBackgroundUploadTask() {
 export const uploadChunk = async (chunk: UploadChunk) => {
 	const formData = new FormData()
 
-	if (Platform.OS === 'web') {
-		if (chunk.file instanceof File) {
-			formData.append('chunk', chunk.file)
-		} else {
-			try {
+	try {
+		if (Platform.OS === 'web') {
+			if (chunk.file instanceof File) {
+				formData.append('chunk', chunk.file)
+			} else {
 				const response = await fetch(chunk.uri)
 				const blob = await response.blob()
 				formData.append('chunk', blob)
-			} catch (error) {
-				console.error('Error converting blob URL to blob:', error)
-				throw new Error('Error converting blob URL to blob')
+			}
+		} else {
+			formData.append('chunk', {
+				uri: chunk.uri,
+				type: 'application/octet-stream',
+				name: `chunk_${chunk.chunkIndex}`,
+			} as any)
+		}
+
+		formData.append('uploadId', chunk.fileId)
+		formData.append('chunkIndex', chunk.chunkIndex.toString())
+
+		await axios.post(`${API_BASE_URL}/upload-chunk`, formData, {
+			headers: {
+				'Content-Type': 'multipart/form-data',
+			},
+		})
+
+		if (Platform.OS !== 'web') {
+			const status = await BackgroundFetch.getStatusAsync()
+			if (status === BackgroundFetch.BackgroundFetchStatus.Available) {
+				await registerBackgroundUploadTask()
+				console.log('Background task for uploading started.')
 			}
 		}
-	} else {
-		formData.append('chunk', {
-			uri: chunk.uri,
-			type: 'application/octet-stream',
-			name: `chunk_${chunk.chunkIndex}`,
-		} as any)
-	}
 
-	formData.append('uploadId', chunk.fileId)
-	formData.append('chunkIndex', chunk.chunkIndex.toString())
-
-	try {
-		if (Platform.OS !== 'web') {
-			await axios.post(`${API_BASE_URL}/upload-chunk`, formData, {
-				headers: {
-					'Content-Type': 'multipart/form-data',
-				},
-			})
-
-			BackgroundFetch.getStatusAsync().then(async status => {
-				if (
-					status === BackgroundFetch.BackgroundFetchStatus.Available
-				) {
-					await registerBackgroundUploadTask()
-					console.log('Background task for uploading started.')
-				}
-			})
-		}
-		console.log('Chunk uploaded successfully')
+		return true
 	} catch (error) {
-		console.error('Upload chunk failed', error)
-		throw new Error('Upload chunk failed')
+		throw new Error(
+			`Upload chunk ${
+				chunk.chunkIndex
+			} failed: ${getUserFriendlyErrorMessage(error)}`
+		)
 	}
 }
 
@@ -157,6 +153,7 @@ export const finalizeUpload = async (
 			}
 		}
 	} catch (err) {
+		console.log('Error in finalize upload')
 		console.error(err)
 		return {
 			success: false,

@@ -6,12 +6,10 @@ import { Platform } from 'react-native'
 import 'react-native-reanimated'
 import '../global.css'
 
-// Import web styles only on web platform
 if (Platform.OS === 'web') {
 	require('../web-styles.css')
 }
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync()
 
 export default function RootLayout() {
