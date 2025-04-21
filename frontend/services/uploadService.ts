@@ -148,7 +148,6 @@ export const finalizeUpload = async (
 			}
 		}
 	} catch (err) {
-		console.error('Error in finalize upload', err)
 		return {
 			success: false,
 			message: getUserFriendlyErrorMessage(err),

@@ -250,7 +250,6 @@ router.post('/finalize-upload', async (req: Request, res: Response) => {
 			checksum: md5,
 		})
 	} catch (err) {
-		console.error('Error in finalize-upload:', err)
 		return res.status(500).json({
 			success: false,
 			message: err instanceof Error ? err.message : 'Unknown error',
