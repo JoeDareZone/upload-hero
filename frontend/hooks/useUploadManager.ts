@@ -79,7 +79,7 @@ export const useUploadManager = () => {
 
 		// Artificial delay for testing
 		if (ARTIFICIAL_DELAY) {
-			await new Promise(res => setTimeout(res, 500))
+			await new Promise(res => setTimeout(res, 200))
 		}
 
 		if (filesRef.current.find(f => f.id === fileId)?.status === 'paused') {
