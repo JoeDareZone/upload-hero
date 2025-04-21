@@ -63,7 +63,7 @@ npm start
 ```bash
 cd frontend
 npm install
-npm web
+npm run web
 ```
 
 ### 📱 Mobile
