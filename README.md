@@ -63,9 +63,8 @@ npm start
 ```bash
 cd frontend
 npm install
-npm start
+npm web
 ```
-Press w to open in the browser
 
 ### 📱 Mobile
 ```bash
