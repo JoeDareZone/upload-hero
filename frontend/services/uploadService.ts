@@ -18,9 +18,6 @@ export const initiateUpload = async (file: UploadFile): Promise<string> => {
 		})
 
 		if (response.data.success) {
-			console.log(
-				`✅ Initiated upload: ${file.name}, ID: ${response.data.uploadId}`
-			)
 			return response.data.uploadId
 		} else {
 			throw new Error(
@@ -146,15 +143,13 @@ export const finalizeUpload = async (
 		if (response.data.isDuplicate) {
 			throw new Error('File already exists')
 		} else {
-			console.log(`✅ Finalized upload: ${file.name}`)
 			return {
 				success: true,
 				message: 'Upload successful',
 			}
 		}
 	} catch (err) {
-		console.log('Error in finalize upload')
-		console.error(err)
+		console.error('Error in finalize upload', err)
 		return {
 			success: false,
 			message: getUserFriendlyErrorMessage(err),

@@ -15,7 +15,6 @@ import { saveToUploadHistory } from '@/utils/storageUtils'
 import { useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 
-// Types
 type FileUploadState = {
 	files: UploadFile[]
 	isUploading: boolean

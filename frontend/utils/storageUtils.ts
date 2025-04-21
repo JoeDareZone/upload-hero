@@ -1,4 +1,4 @@
-import { UploadFile } from '@/types/fileType'
+import { UploadFile } from "@/types/fileType"
 
 const UPLOAD_HISTORY_KEY = 'upload_history'
 
