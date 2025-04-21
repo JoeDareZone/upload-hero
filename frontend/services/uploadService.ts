@@ -109,7 +109,6 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 			const status = await BackgroundFetch.getStatusAsync()
 			if (status === BackgroundFetch.BackgroundFetchStatus.Available) {
 				await registerBackgroundUploadTask()
-				console.log('Background task for uploading started.')
 			}
 		}
 
