@@ -9,14 +9,14 @@ export default function FilePicker({
 	isAllFilesUploaded,
 	onPressNative,
 }: FilePickerProps) {
+	const isDisabled = isUploading || isLoading || isAllFilesUploaded
 	return (
 		<TouchableOpacity
 			onPress={onPressNative}
 			className='min-h-48 my-4 justify-center items-center bg-gray-800 py-10 rounded-xl'
-			disabled={isUploading || isLoading || isAllFilesUploaded}
+			disabled={isDisabled}
 			style={{
-				opacity:
-					isUploading || isLoading || isAllFilesUploaded ? 0.5 : 1,
+				opacity: isDisabled ? 0.5 : 1,
 			}}
 		>
 			{isLoading ? (

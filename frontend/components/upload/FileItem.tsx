@@ -21,6 +21,78 @@ export const FileItem = ({
 	cancelUpload,
 }: FileItemProps) => {
 	const isWeb = Platform.OS === 'web'
+	const {
+		id,
+		uri,
+		name,
+		status,
+		uploadedChunks,
+		totalChunks,
+		size,
+		mimeType,
+		errorMessage,
+	} = item
+
+	const getProgressColor = () => {
+		if (status === 'uploading') return 'lightblue'
+		if (status === 'error') return 'orange'
+		return uploadedChunks === totalChunks ? 'green' : 'grey'
+	}
+
+	const renderStatusIcon = () => {
+		if (status === 'completed') {
+			return (
+				<IconSymbol
+					name={`checkmark.circle.fill`}
+					size={22}
+					color='green'
+				/>
+			)
+		}
+
+		if (status === 'error') {
+			return (
+				<IconSymbol
+					name='exclamationmark.triangle.fill'
+					size={22}
+					color='orange'
+				/>
+			)
+		}
+
+		return (
+			<TouchableOpacity
+				onPress={() => cancelUpload(id)}
+				className={isWeb ? 'hover-highlight' : ''}
+				style={{ cursor: isWeb ? 'pointer' : undefined }}
+			>
+				<IconSymbol name='trash' size={20} color='red' />
+			</TouchableOpacity>
+		)
+	}
+
+	const renderFileInfo = () => {
+		if (status === 'completed') {
+			return (
+				<Text className='text-gray-200 mr-1'>Upload Successful!</Text>
+			)
+		}
+
+		if (status === 'error') {
+			return <Text className='text-orange-300'>{errorMessage}</Text>
+		}
+
+		return (
+			<View className='flex-row gap-x-2 items-center justify-center'>
+				<Text className='text-gray-300 text-md'>
+					{convertBytesToMB(size)} MB
+				</Text>
+				<Text className='text-gray-400 text-sm' numberOfLines={1}>
+					{mimeType}
+				</Text>
+			</View>
+		)
+	}
 
 	return (
 		<View
@@ -28,9 +100,9 @@ export const FileItem = ({
 				isWeb ? 'file-item-web' : ''
 			}`}
 		>
-			{item.uri && (
+			{uri && (
 				<Image
-					source={{ uri: item.uri }}
+					source={{ uri }}
 					className='w-24 h-24 rounded-lg'
 					resizeMode='cover'
 				/>
@@ -41,16 +113,15 @@ export const FileItem = ({
 						className='text-white text-lg font-semibold'
 						numberOfLines={1}
 					>
-						{item.name}
+						{name}
 					</Text>
 					<View className='flex-row gap-x-3 items-center'>
-						{(item.status === 'uploading' ||
-							item.status === 'paused') && (
+						{(status === 'uploading' || status === 'paused') && (
 							<TouchableOpacity
 								onPress={() =>
-									item.status === 'uploading'
-										? pauseUpload(item.id)
-										: resumeUpload(item.id)
+									status === 'uploading'
+										? pauseUpload(id)
+										: resumeUpload(id)
 								}
 								className={isWeb ? 'hover-highlight' : ''}
 								style={{
@@ -59,7 +130,7 @@ export const FileItem = ({
 							>
 								<IconSymbol
 									name={
-										item.status === 'uploading'
+										status === 'uploading'
 											? 'pause'
 											: 'play'
 									}
@@ -68,49 +139,16 @@ export const FileItem = ({
 								/>
 							</TouchableOpacity>
 						)}
-						{item.status === 'completed' ? (
-							<IconSymbol
-								name='checkmark.circle.fill'
-								size={22}
-								color='green'
-							/>
-						) : item.status === 'error' ? (
-							<IconSymbol
-								name='exclamationmark.triangle.fill'
-								size={22}
-								color='orange'
-							/>
-						) : (
-							<TouchableOpacity
-								onPress={() => cancelUpload(item.id)}
-								className={isWeb ? 'hover-highlight' : ''}
-								style={{
-									cursor: isWeb ? 'pointer' : undefined,
-								}}
-							>
-								<IconSymbol
-									name='trash'
-									size={20}
-									color='red'
-								/>
-							</TouchableOpacity>
-						)}
+						{renderStatusIcon()}
 					</View>
 				</View>
+
 				<View className={isWeb ? 'progress-bar-web' : ''}>
 					<Progress.Bar
-						progress={item.uploadedChunks / item.totalChunks}
+						progress={uploadedChunks / totalChunks}
 						width={null}
 						height={isWeb ? 10 : 8}
-						color={
-							item.status === 'uploading'
-								? 'lightblue'
-								: item.status === 'error'
-								? 'orange'
-								: item.uploadedChunks === item.totalChunks
-								? 'green'
-								: 'grey'
-						}
+						color={getProgressColor()}
 						borderWidth={0}
 						style={{ marginBottom: 16 }}
 						unfilledColor='rgba(255, 255, 255, 0.2)'
@@ -118,35 +156,13 @@ export const FileItem = ({
 				</View>
 
 				<View className='flex-row justify-between mb-2 mt-2'>
-					<View className='max-w-64'>
-						{item.status === 'completed' ? (
-							<Text className='text-gray-200 mr-1'>
-								Upload Successful!
-							</Text>
-						) : item.status === 'error' ? (
-							<Text className='text-orange-300'>
-								{item.errorMessage}
-							</Text>
-						) : (
-							<View className='flex-row gap-x-2 items-center justify-center'>
-								<Text className='text-gray-300 text-md'>
-									{convertBytesToMB(item.size)} MB
-								</Text>
-								<Text
-									className='text-gray-400 text-sm'
-									numberOfLines={1}
-								>
-									{item.mimeType}
-								</Text>
-							</View>
-						)}
-					</View>
+					<View className='max-w-64'>{renderFileInfo()}</View>
 
-					{item.status !== 'queued' && (
+					{status !== 'queued' && (
 						<Text className='text-gray-200'>
 							{convertUploadedChunksToPercentage(
-								item.uploadedChunks,
-								item.totalChunks
+								uploadedChunks,
+								totalChunks
 							)}
 							%
 						</Text>
