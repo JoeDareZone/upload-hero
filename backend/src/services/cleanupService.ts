@@ -8,6 +8,8 @@ class CleanupService {
 	private job: schedule.Job | null = null
 
 	start(cronSchedule = '*/5 * * * *') {
+		console.log('Starting upload cleanup service...')
+
 		this.job = schedule.scheduleJob(cronSchedule, () => {
 			Promise.all([
 				this.cleanupIncompleteUploads(),
@@ -30,6 +32,7 @@ class CleanupService {
 		if (this.job) {
 			this.job.cancel()
 			this.job = null
+			console.log('Upload cleanup service stopped')
 		}
 	}
 

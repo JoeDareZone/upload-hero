@@ -16,15 +16,23 @@ app.use(express.json())
 app.use('/', uploadRoutes)
 
 const server = app.listen(4000, () => {
+	console.log('Server running on port 4000')
+
 	cleanupService.start()
 })
 
 process.on('SIGTERM', () => {
+	console.log('SIGTERM signal received: closing HTTP server')
 	cleanupService.stop()
-	server.close()
+	server.close(() => {
+		console.log('HTTP server closed')
+	})
 })
 
 process.on('SIGINT', () => {
+	console.log('SIGINT signal received: closing HTTP server')
 	cleanupService.stop()
-	server.close()
+	server.close(() => {
+		console.log('HTTP server closed')
+	})
 })

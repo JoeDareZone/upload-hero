@@ -17,10 +17,14 @@ describe('finalizeUpload Controller', () => {
 	beforeEach(() => {
 		jest.clearAllMocks()
 		;(path.join as jest.Mock).mockImplementation((...args) => {
-			if (args.includes('final')) {
+			if (args.includes('final') && args.includes(mockFileName)) {
 				return mockFinalPath
+			} else if (args.includes('final')) {
+				return '/mocked/path/uploads/final'
+			} else if (args.includes(mockUploadId)) {
+				return mockTempDir
 			}
-			return mockTempDir
+			return args.join('/')
 		})
 		;(fs.existsSync as jest.Mock).mockImplementation(path => {
 			return true
@@ -51,7 +55,17 @@ describe('finalizeUpload Controller', () => {
 			}),
 		}
 
-		;(fs.createWriteStream as jest.Mock).mockReturnValue(mockWriteStream)
+		;(fs.createWriteStream as jest.Mock).mockImplementation(path => {
+			expect(path).toBe(mockFinalPath)
+			const mockStream = {
+				on: jest.fn().mockImplementation((event, callback) => {
+					if (event === 'finish') callback()
+					return mockStream
+				}),
+				end: jest.fn(),
+			}
+			return mockStream
+		})
 		;(fs.createReadStream as jest.Mock).mockReturnValue(mockReadStream)
 	})
 
@@ -79,7 +93,7 @@ describe('finalizeUpload Controller', () => {
 
 		await expect(
 			reassembleFile(mockUploadId, mockTotalChunks, mockFileName)
-		).rejects.toThrow('Upload directory does not exist.')
+		).rejects.toThrow(`Upload directory does not exist: ${mockTempDir}`)
 	})
 
 	test('should throw error if file type validation fails', async () => {
@@ -88,6 +102,16 @@ describe('finalizeUpload Controller', () => {
 		;(fs.readFileSync as jest.Mock).mockReturnValue(
 			Buffer.from('dummy data')
 		)
+		;(fs.createWriteStream as jest.Mock).mockImplementation(path => {
+			expect(path).toBe(mockFinalPath)
+			return {
+				on: jest.fn().mockImplementation((event, callback) => {
+					if (event === 'finish') callback()
+					return this
+				}),
+				end: jest.fn(),
+			}
+		})
 
 		await expect(
 			reassembleFile(
