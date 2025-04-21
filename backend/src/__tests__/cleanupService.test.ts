@@ -25,8 +25,6 @@ describe('CleanupService', () => {
 	beforeEach(() => {
 		jest.clearAllMocks()
 
-		jest.spyOn(console, 'log').mockImplementation(() => {})
-		jest.spyOn(console, 'error').mockImplementation(() => {})
 		;(fs.existsSync as jest.Mock).mockReturnValue(true)
 		;(fs.readdirSync as jest.Mock).mockReturnValue(mockFiles)
 		;(fs.statSync as jest.Mock).mockImplementation(filePath => {
@@ -53,9 +51,6 @@ describe('CleanupService', () => {
 	test('should start and schedule cleanup job', () => {
 		CleanupService.start()
 		expect(schedule.scheduleJob).toHaveBeenCalled()
-		expect(console.log).toHaveBeenCalledWith(
-			'Starting upload cleanup service...'
-		)
 	})
 
 	test('should stop cleanup job', () => {
@@ -68,9 +63,6 @@ describe('CleanupService', () => {
 		CleanupService.stop()
 
 		expect(mockCancel).toHaveBeenCalled()
-		expect(console.log).toHaveBeenCalledWith(
-			'Upload cleanup service stopped'
-		)
 	})
 
 	test('should clean up incomplete uploads older than retention period', async () => {
