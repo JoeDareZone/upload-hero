@@ -10,6 +10,7 @@ import { OverallProgress } from '@/components/upload/UploadProgress'
 import { calculateUploadStats, useFileSelection } from '@/hooks/uploadHooks'
 import { useUploadManager } from '@/hooks/useUploadManager'
 import { UploadFile } from '@/types/fileType'
+import { API_BASE_URL } from '@/utils/constants'
 import React, { useEffect, useState } from 'react'
 import {
 	Platform,
@@ -59,12 +60,31 @@ export default function HomeScreen() {
 	const [recentUploadIds, setRecentUploadIds] = useState<string[]>([])
 	const [savedUploadId, setSavedUploadId] = useState('')
 	const [showTestPanel, setShowTestPanel] = useState(false)
-
+	const [metrics, setMetrics] = useState({
+		activeUploads: 0,
+		successfulUploads: 0,
+		failedUploads: 0,
+		cpuLoad: [],
+		memory: {
+			free: 0,
+			total: 0,
+		},
+	})
 	const allErrors = [...errors, ...dragDropErrors]
 	const isWeb = Platform.OS === 'web'
 
 	useEffect(() => {
 		loadIncompleteUploads(isAllFilesUploaded)
+	}, [])
+
+	useEffect(() => {
+		const interval = setInterval(async () => {
+			const res = await fetch(`${API_BASE_URL}/metrics`)
+			const data = await res.json()
+			setMetrics(data)
+		}, 3000)
+
+		return () => clearInterval(interval)
 	}, [])
 
 	useEffect(() => {
@@ -129,11 +149,41 @@ export default function HomeScreen() {
 				</View>
 
 				{showTestPanel && (
-					<RedisTestPanel
-						recentUploadIds={recentUploadIds}
-						savedUploadId={savedUploadId}
-						setSavedUploadId={setSavedUploadId}
-					/>
+					<>
+						<RedisTestPanel
+							recentUploadIds={recentUploadIds}
+							savedUploadId={savedUploadId}
+							setSavedUploadId={setSavedUploadId}
+						/>
+						<View className='p-4 bg-gray-800 rounded-lg mb-4'>
+							<Text className='text-white font-bold mb-2'>
+								📊 Real-Time Monitoring
+							</Text>
+							<Text className='text-white'>
+								Active Uploads: {metrics.activeUploads}
+							</Text>
+							<Text className='text-white'>
+								Upload Success Rate: {metrics.successfulUploads}{' '}
+								✅ / {metrics.failedUploads} ❌
+							</Text>
+							<Text className='text-white'>
+								CPU Load:{' '}
+								{metrics.cpuLoad
+									?.map((n: number) => n.toFixed(2))
+									.join(', ')}
+							</Text>
+							<Text className='text-white'>
+								Memory Usage:{' '}
+								{Math.round(
+									((metrics.memory?.total -
+										metrics.memory?.free) /
+										metrics.memory?.total) *
+										100
+								)}
+								%
+							</Text>
+						</View>
+					</>
 				)}
 
 				<FilePicker

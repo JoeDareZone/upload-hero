@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { Request, Response, Router } from 'express'
 import fs from 'fs-extra'
 import multer from 'multer'
+import os from 'os'
 import path from 'path'
 import { UPLOAD_DIR, getUserStoragePath } from '../constants'
 import { reassembleFile } from '../controllers/finalizeUpload'
@@ -10,6 +11,23 @@ import redisService from '../services/redisService'
 
 const router = Router()
 const upload = multer({ dest: 'uploads/' })
+
+let metrics = {
+	activeUploads: 0,
+	successfulUploads: 0,
+	failedUploads: 0,
+}
+
+router.get('/metrics', (req: Request, res: Response) => {
+	res.json({
+		...metrics,
+		cpuLoad: os.loadavg(), // [1min, 5min, 15min]
+		memory: {
+			free: os.freemem(),
+			total: os.totalmem(),
+		},
+	})
+})
 
 // @ts-ignore
 router.post('/initiate-upload', async (req: Request, res: Response) => {
@@ -41,10 +59,8 @@ router.post('/initiate-upload', async (req: Request, res: Response) => {
 			},
 		}
 
-		// Store metadata in filesystem for backward compatibility
 		fs.writeJSONSync(path.join(uploadDir, 'metadata.json'), metaData)
 
-		// Also store in Redis with TTL
 		await redisService.storeUploadMetadata(uploadId, metaData)
 		await redisService.updateChunksReceived(uploadId, 0)
 
@@ -238,6 +254,7 @@ router.post('/finalize-upload', async (req: Request, res: Response) => {
 		})
 		return
 	}
+	metrics.activeUploads++
 
 	const uploadDir = path.join(UPLOAD_DIR, uploadId)
 	await fs.ensureDir(uploadDir)
@@ -298,6 +315,7 @@ router.post('/finalize-upload', async (req: Request, res: Response) => {
 		await storeFileChecksum(md5, dest, userId || 'anonymous')
 		await fs.remove(uploadDir)
 
+		metrics.successfulUploads++
 		return res.json({
 			success: true,
 			message: 'Upload finalized successfully.',
@@ -305,10 +323,13 @@ router.post('/finalize-upload', async (req: Request, res: Response) => {
 			checksum: md5,
 		})
 	} catch (err) {
+		metrics.failedUploads++
 		return res.status(500).json({
 			success: false,
 			message: err instanceof Error ? err.message : 'Unknown error',
 		})
+	} finally {
+		metrics.activeUploads--
 	}
 })
 
