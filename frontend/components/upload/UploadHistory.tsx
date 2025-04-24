@@ -23,7 +23,9 @@ export default function UploadHistory({
 	const isWeb = Platform.OS === 'web'
 
 	useEffect(() => {
-		if (isVisible) setHistory(getUploadHistory())
+		if (isVisible) {
+			getUploadHistory().then(setHistory)
+		}
 	}, [isVisible])
 
 	const handleClearHistory = () => {
