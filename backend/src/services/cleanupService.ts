@@ -3,6 +3,7 @@ import schedule from 'node-schedule'
 import path from 'path'
 import { FILE_RETENTION_PERIOD, UPLOAD_DIR } from '../constants'
 import { cleanupOldChecksums } from '../models/FileChecksum'
+import redisService from './redisService'
 
 class CleanupService {
 	private job: schedule.Job | null = null
@@ -59,6 +60,15 @@ class CleanupService {
 					stats.isDirectory() &&
 					now - stats.mtimeMs > FILE_RETENTION_PERIOD
 				) {
+					try {
+						await redisService.clearUploadData(file)
+					} catch (redisError) {
+						console.error(
+							`Error cleaning Redis data for ${file}:`,
+							redisError
+						)
+					}
+
 					fs.rmSync(filePath, { recursive: true, force: true })
 					removedCount++
 				}

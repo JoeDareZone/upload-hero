@@ -1,12 +1,10 @@
 import { UploadChunk, UploadFile } from '@/types/fileType'
+import { API_BASE_URL } from '@/utils/constants'
 import { getUserFriendlyErrorMessage } from '@/utils/helpers'
 import axios from 'axios'
 import * as BackgroundFetch from 'expo-background-fetch'
 import * as TaskManager from 'expo-task-manager'
 import { Platform } from 'react-native'
-
-const API_BASE_URL =
-	Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000'
 
 export const initiateUpload = async (file: UploadFile): Promise<string> => {
 	try {
@@ -77,7 +75,6 @@ async function registerBackgroundUploadTask() {
 }
 
 export const uploadChunk = async (chunk: UploadChunk) => {
-	// If this is a resumed chunk, don't bother with the actual upload
 	if (chunk.isResume) {
 		console.log(
 			`Chunk ${chunk.chunkIndex} for file ${chunk.fileId} is already uploaded (marked as isResume=true)`
@@ -109,13 +106,6 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 
 		formData.append('uploadId', chunk.fileId)
 		formData.append('chunkIndex', chunk.chunkIndex.toString())
-
-		// Log the chunk upload attempt
-		if (Platform.OS === 'web') {
-			console.log(
-				`Uploading chunk ${chunk.chunkIndex} for file ${chunk.fileId}`
-			)
-		}
 
 		await axios.post(`${API_BASE_URL}/upload-chunk`, formData, {
 			headers: {
