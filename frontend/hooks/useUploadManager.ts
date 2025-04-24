@@ -12,6 +12,7 @@ import {
 	MAX_CONCURRENT_UPLOADS,
 } from '@/utils/constants'
 import {
+	clearIncompleteUploads,
 	getIncompleteUploads,
 	saveIncompleteUploads,
 	saveToUploadHistory,
@@ -454,6 +455,9 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 		activeUploads.current = 0
 		updateFiles([])
 		setIsUploading(false)
+		clearIncompleteUploads().catch(error => {
+			console.error('Error clearing incomplete uploads:', error)
+		})
 	}
 
 	return {

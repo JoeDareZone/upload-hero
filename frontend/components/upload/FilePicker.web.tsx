@@ -22,10 +22,11 @@ export default function FilePicker({
 		const loadIncompleteFiles = async () => {
 			const files = await getIncompleteUploads()
 			if (files.length > 0) setIncompleteUploads(files)
+			else setIncompleteUploads([])
 		}
 
 		loadIncompleteFiles()
-	}, [])
+	}, [isAllFilesUploaded])
 
 	const handleWebFileSelect = (e: any) => {
 		if (!e.target.files || e.target.files.length === 0) return
