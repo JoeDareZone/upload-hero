@@ -7,13 +7,17 @@ const INCOMPLETE_UPLOADS_KEY = 'incomplete_uploads'
 
 const getStorage = () => (Platform.OS === 'web' ? localStorage : AsyncStorage)
 
+const isWebAndServerSide =
+	Platform.OS === 'web' && typeof window === 'undefined'
+
 export const saveToUploadHistory = (file: UploadFile): void => {
-	if (Platform.OS === 'web' && typeof window === 'undefined') return
+	if (isWebAndServerSide) return
 
 	try {
 		if (file.status !== 'completed') return
 
 		const storage = getStorage()
+
 		const getItem = async () => await storage.getItem(UPLOAD_HISTORY_KEY)
 
 		const setItem = async (key: string, value: string) =>
@@ -48,10 +52,11 @@ export const saveToUploadHistory = (file: UploadFile): void => {
 }
 
 export const getUploadHistory = async (): Promise<UploadFile[]> => {
-	if (Platform.OS === 'web' && typeof window === 'undefined') return []
+	if (isWebAndServerSide) return []
 
 	try {
 		const storage = getStorage()
+
 		const historyString = await storage.getItem(UPLOAD_HISTORY_KEY)
 
 		return historyString ? JSON.parse(historyString) : []
@@ -62,10 +67,11 @@ export const getUploadHistory = async (): Promise<UploadFile[]> => {
 }
 
 export const clearUploadHistory = async (): Promise<void> => {
-	if (Platform.OS === 'web' && typeof window === 'undefined') return
+	if (isWebAndServerSide) return
 
 	try {
 		const storage = getStorage()
+
 		await storage.removeItem(UPLOAD_HISTORY_KEY)
 	} catch (error) {
 		console.error('Error clearing upload history:', error)
@@ -75,7 +81,7 @@ export const clearUploadHistory = async (): Promise<void> => {
 export const saveIncompleteUploads = async (
 	files: UploadFile[]
 ): Promise<void> => {
-	if (Platform.OS === 'web' && typeof window === 'undefined') return
+	if (isWebAndServerSide) return
 
 	try {
 		const incompleteFiles = files.filter(file =>
@@ -87,8 +93,9 @@ export const saveIncompleteUploads = async (
 				? incompleteFiles.map(({ file, ...rest }) => rest)
 				: incompleteFiles
 
-		const storage = getStorage()
 		const serialized = JSON.stringify(serializableFiles)
+
+		const storage = getStorage()
 
 		await storage.setItem(INCOMPLETE_UPLOADS_KEY, serialized)
 	} catch (error) {
@@ -97,10 +104,11 @@ export const saveIncompleteUploads = async (
 }
 
 export const getIncompleteUploads = async (): Promise<UploadFile[]> => {
-	if (Platform.OS === 'web' && typeof window === 'undefined') return []
+	if (isWebAndServerSide) return []
 
 	try {
 		const storage = getStorage()
+
 		const uploadsString = await storage.getItem(INCOMPLETE_UPLOADS_KEY)
 
 		return uploadsString ? JSON.parse(uploadsString) : []
@@ -111,10 +119,11 @@ export const getIncompleteUploads = async (): Promise<UploadFile[]> => {
 }
 
 export const clearIncompleteUploads = async (): Promise<void> => {
-	if (Platform.OS === 'web' && typeof window === 'undefined') return
+	if (isWebAndServerSide) return
 
 	try {
 		const storage = getStorage()
+
 		await storage.removeItem(INCOMPLETE_UPLOADS_KEY)
 	} catch (error) {
 		console.error('Error clearing incomplete uploads:', error)

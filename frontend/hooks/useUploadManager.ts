@@ -71,7 +71,9 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 				}
 			}
 
-			loadIncompleteUploads()
+			if (Platform.OS !== 'web') {
+				loadIncompleteUploads()
+			}
 		}
 	}, [])
 

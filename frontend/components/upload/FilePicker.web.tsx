@@ -2,6 +2,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol'
 import { createUploadFile } from '@/hooks/uploadHooks'
 import { UploadFile } from '@/types/fileType'
 import { MAX_FILE_SIZE_MB, MAX_FILES } from '@/utils/constants'
+import { getIncompleteUploads } from '@/utils/storageUtils'
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native'
 import { FilePickerProps } from './FilePicker'
@@ -14,7 +15,17 @@ export default function FilePicker({
 	onError,
 }: FilePickerProps) {
 	const [isDragging, setIsDragging] = useState(false)
+	const [incompleteUploads, setIncompleteUploads] = useState<UploadFile[]>([])
 	const dropZoneRef = useRef(null)
+
+	useEffect(() => {
+		const loadIncompleteFiles = async () => {
+			const files = await getIncompleteUploads()
+			if (files.length > 0) setIncompleteUploads(files)
+		}
+
+		loadIncompleteFiles()
+	}, [])
 
 	const handleWebFileSelect = (e: any) => {
 		if (!e.target.files || e.target.files.length === 0) return
@@ -73,6 +84,39 @@ export default function FilePicker({
 		if (validFiles.length > 0) {
 			onFilesSelected(validFiles)
 		}
+	}
+
+	const resumeUpload = (incompleteFile: UploadFile) => {
+		const input = document.createElement('input')
+		input.type = 'file'
+		input.accept = incompleteFile.mimeType
+		input.onchange = (e: any) => {
+			if (!e.target.files || e.target.files.length === 0) return
+
+			const file = e.target.files[0]
+
+			if (file.size !== incompleteFile.size) {
+				onError(
+					"Selected file doesn't match the original upload. Size mismatch."
+				)
+				return
+			}
+
+			const updatedFile = {
+				...incompleteFile,
+				file: file,
+				uri: URL.createObjectURL(file),
+				status: 'queued',
+			} as UploadFile
+
+			onFilesSelected([updatedFile])
+
+			setIncompleteUploads(prev =>
+				prev.filter(f => f.id !== incompleteFile.id)
+			)
+		}
+
+		input.click()
 	}
 
 	const onPressFileUpload = () => {
@@ -182,50 +226,94 @@ export default function FilePicker({
 	}, [isUploading, isLoading, isAllFilesUploaded, dropZoneRef.current])
 
 	return (
-		<TouchableOpacity
-			ref={dropZoneRef}
-			onPress={onPressFileUpload}
-			className={`min-h-48 my-4 justify-center items-center bg-gray-800 py-10 rounded-xl hover-highlight web-clickable drop-zone ${
-				isDragging ? 'drag-active' : ''
-			}`}
-			disabled={isUploading || isLoading || isAllFilesUploaded}
-			style={{
-				opacity:
-					isUploading || isLoading || isAllFilesUploaded ? 0.5 : 1,
-			}}
-		>
-			{isLoading ? (
-				<ActivityIndicator size='large' color='#fff' />
-			) : (
-				<View className='items-center gap-y-2'>
-					<IconSymbol
-						name='doc.badge.arrow.up.fill'
-						size={32}
-						color={isUploading ? 'gray' : 'white'}
-					/>
-					<Text
-						className={`text-white text-lg font-semibold ${
-							isDragging ? 'drop-zone-text' : ''
-						}`}
-					>
-						{isUploading
-							? 'Upload in progress...'
-							: isDragging
-							? 'Drop files here'
-							: 'Drag & drop or click to upload'}
-					</Text>
-					<Text className='text-gray-300 text-sm'>
-						Supported formats: JPG, PNG, mp4 (up to{' '}
-						{MAX_FILE_SIZE_MB}MB)
-					</Text>
-
-					<View className='mt-4 custom-file-input-web bg-blue-600 px-6 py-2 rounded-lg hover-highlight'>
-						<Text className='text-white font-medium'>
-							Browse Files
+		<View>
+			<TouchableOpacity
+				ref={dropZoneRef}
+				onPress={onPressFileUpload}
+				className={`min-h-48 my-4 justify-center items-center bg-gray-800 py-10 rounded-xl hover-highlight web-clickable drop-zone ${
+					isDragging ? 'drag-active' : ''
+				}`}
+				disabled={isUploading || isLoading || isAllFilesUploaded}
+				style={{
+					opacity:
+						isUploading || isLoading || isAllFilesUploaded
+							? 0.5
+							: 1,
+				}}
+			>
+				{isLoading ? (
+					<ActivityIndicator size='large' color='#fff' />
+				) : (
+					<View className='items-center gap-y-2'>
+						<IconSymbol
+							name='doc.badge.arrow.up.fill'
+							size={32}
+							color={isUploading ? 'gray' : 'white'}
+						/>
+						<Text
+							className={`text-white text-lg font-semibold ${
+								isDragging ? 'drop-zone-text' : ''
+							}`}
+						>
+							{isUploading
+								? 'Upload in progress...'
+								: isDragging
+								? 'Drop files here'
+								: 'Drag & drop or click to upload'}
 						</Text>
+						<Text className='text-gray-300 text-sm'>
+							Supported formats: JPG, PNG, mp4 (up to{' '}
+							{MAX_FILE_SIZE_MB}MB)
+						</Text>
+
+						<View className='mt-4 custom-file-input-web bg-blue-600 px-6 py-2 rounded-lg hover-highlight'>
+							<Text className='text-white font-medium'>
+								Browse Files
+							</Text>
+						</View>
 					</View>
-				</View>
-			)}
-		</TouchableOpacity>
+				)}
+			</TouchableOpacity>
+
+			{incompleteUploads.length > 0 &&
+				!isUploading &&
+				!isLoading &&
+				!isAllFilesUploaded && (
+					<View className='mt-2 mb-4 border-t border-gray-700 pt-4'>
+						<Text className='text-white text-lg font-semibold mb-2'>
+							Resume Incomplete Uploads
+						</Text>
+						{incompleteUploads.map(file => (
+							<TouchableOpacity
+								key={file.id}
+								className='flex-row items-center py-2 px-4 bg-gray-800 mb-2 rounded-lg hover-highlight'
+								onPress={() => resumeUpload(file)}
+							>
+								<IconSymbol
+									name='arrow.clockwise'
+									size={20}
+									color='white'
+								/>
+								<View className='ml-3 flex-1'>
+									<Text className='text-white'>
+										{file.name}
+									</Text>
+									<Text className='text-gray-400 text-xs'>
+										{Math.round(
+											(file.uploadedChunks /
+												file.totalChunks) *
+												100
+										)}
+										% complete
+									</Text>
+								</View>
+								<Text className='text-blue-400 text-sm'>
+									Resume
+								</Text>
+							</TouchableOpacity>
+						))}
+					</View>
+				)}
+		</View>
 	)
 }
