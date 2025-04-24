@@ -20,12 +20,20 @@ export const createChunks = (file: UploadFile): UploadChunk[] => {
 			uri: file.uri,
 		}
 
-		if (Platform.OS === 'web' && file.file instanceof File) {
-			const blobSlice = file.file.slice(start, end)
-			chunk.uri = URL.createObjectURL(blobSlice)
-			chunk.file = new File([blobSlice], `chunk_${i + 1}`, {
-				type: file.file.type,
-			})
+		if (Platform.OS === 'web') {
+			const checkIfFileIsBeingResumed = () => {
+				if (file.file instanceof File) {
+					const blobSlice = file.file.slice(start, end)
+					chunk.uri = URL.createObjectURL(blobSlice)
+					chunk.file = new File([blobSlice], `chunk_${i + 1}`, {
+						type: file.file.type,
+					})
+				} else {
+					chunk.isResume = true
+				}
+			}
+
+			checkIfFileIsBeingResumed()
 		}
 
 		chunks.push(chunk)

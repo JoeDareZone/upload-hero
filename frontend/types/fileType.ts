@@ -33,4 +33,5 @@ export type UploadChunk = {
 	retries: number
 	uri: string
 	file?: File
+	isResume?: boolean
 }

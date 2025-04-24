@@ -83,6 +83,11 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 		if (Platform.OS === 'web') {
 			if (chunk.file instanceof File) {
 				formData.append('chunk', chunk.file)
+			} else if (chunk.isResume) {
+				console.log(
+					`Chunk ${chunk.chunkIndex} is part of a resumed upload, skipping direct upload`
+				)
+				return true
 			} else {
 				const response = await fetch(chunk.uri)
 				const blob = await response.blob()

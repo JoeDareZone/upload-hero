@@ -1,43 +1,59 @@
-import { UploadFile } from "@/types/fileType"
+import { UploadFile } from '@/types/fileType'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Platform } from 'react-native'
 
 const UPLOAD_HISTORY_KEY = 'upload_history'
+const INCOMPLETE_UPLOADS_KEY = 'incomplete_uploads'
+
+const getStorage = () => (Platform.OS === 'web' ? localStorage : AsyncStorage)
 
 export const saveToUploadHistory = (file: UploadFile): void => {
-	if (typeof window === 'undefined') return
+	if (Platform.OS === 'web' && typeof window === 'undefined') return
 
 	try {
 		if (file.status !== 'completed') return
 
-		const historyString = localStorage.getItem(UPLOAD_HISTORY_KEY)
-		const history: UploadFile[] = historyString
-			? JSON.parse(historyString)
-			: []
+		const storage = getStorage()
+		const getItem = async () => await storage.getItem(UPLOAD_HISTORY_KEY)
 
-		if (!history.some(existingFile => existingFile.id === file.id)) {
-			const fileWithTimestamp = {
-				...file,
-				completedAt: new Date().toISOString(),
-			}
+		const setItem = async (key: string, value: string) =>
+			await storage.setItem(key, value)
 
-			history.unshift(fileWithTimestamp)
+		getItem()
+			.then(historyString => {
+				const history: UploadFile[] = historyString
+					? JSON.parse(historyString)
+					: []
 
-			const limitedHistory = history.slice(0, 100)
+				if (
+					!history.some(existingFile => existingFile.id === file.id)
+				) {
+					const fileWithTimestamp = {
+						...file,
+						completedAt: new Date().toISOString(),
+					}
 
-			localStorage.setItem(
-				UPLOAD_HISTORY_KEY,
-				JSON.stringify(limitedHistory)
+					history.unshift(fileWithTimestamp)
+					const limitedHistory = history.slice(0, 100)
+
+					setItem(UPLOAD_HISTORY_KEY, JSON.stringify(limitedHistory))
+				}
+			})
+			.catch(error =>
+				console.error('Error saving to upload history:', error)
 			)
-		}
 	} catch (error) {
 		console.error('Error saving to upload history:', error)
 	}
 }
 
-export const getUploadHistory = (): UploadFile[] => {
-	if (typeof window === 'undefined') return []
+export const getUploadHistory = async (): Promise<UploadFile[]> => {
+	if (Platform.OS === 'web' && typeof window === 'undefined') return []
 
 	try {
-		const historyString = localStorage.getItem(UPLOAD_HISTORY_KEY)
+		const storage = getStorage()
+		const historyString = await storage.getItem(UPLOAD_HISTORY_KEY)
+
 		return historyString ? JSON.parse(historyString) : []
 	} catch (error) {
 		console.error('Error retrieving upload history:', error)
@@ -45,12 +61,62 @@ export const getUploadHistory = (): UploadFile[] => {
 	}
 }
 
-export const clearUploadHistory = (): void => {
-	if (typeof window === 'undefined') return
+export const clearUploadHistory = async (): Promise<void> => {
+	if (Platform.OS === 'web' && typeof window === 'undefined') return
 
 	try {
-		localStorage.removeItem(UPLOAD_HISTORY_KEY)
+		const storage = getStorage()
+		await storage.removeItem(UPLOAD_HISTORY_KEY)
 	} catch (error) {
 		console.error('Error clearing upload history:', error)
+	}
+}
+
+export const saveIncompleteUploads = async (
+	files: UploadFile[]
+): Promise<void> => {
+	if (Platform.OS === 'web' && typeof window === 'undefined') return
+
+	try {
+		const incompleteFiles = files.filter(file =>
+			['queued', 'uploading', 'paused', 'error'].includes(file.status)
+		)
+
+		const serializableFiles =
+			Platform.OS === 'web'
+				? incompleteFiles.map(({ file, ...rest }) => rest)
+				: incompleteFiles
+
+		const storage = getStorage()
+		const serialized = JSON.stringify(serializableFiles)
+
+		await storage.setItem(INCOMPLETE_UPLOADS_KEY, serialized)
+	} catch (error) {
+		console.error('Error saving incomplete uploads:', error)
+	}
+}
+
+export const getIncompleteUploads = async (): Promise<UploadFile[]> => {
+	if (Platform.OS === 'web' && typeof window === 'undefined') return []
+
+	try {
+		const storage = getStorage()
+		const uploadsString = await storage.getItem(INCOMPLETE_UPLOADS_KEY)
+
+		return uploadsString ? JSON.parse(uploadsString) : []
+	} catch (error) {
+		console.error('Error retrieving incomplete uploads:', error)
+		return []
+	}
+}
+
+export const clearIncompleteUploads = async (): Promise<void> => {
+	if (Platform.OS === 'web' && typeof window === 'undefined') return
+
+	try {
+		const storage = getStorage()
+		await storage.removeItem(INCOMPLETE_UPLOADS_KEY)
+	} catch (error) {
+		console.error('Error clearing incomplete uploads:', error)
 	}
 }

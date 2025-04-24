@@ -11,7 +11,11 @@ import {
 	CHUNK_SIZE,
 	MAX_CONCURRENT_UPLOADS,
 } from '@/utils/constants'
-import { saveToUploadHistory } from '@/utils/storageUtils'
+import {
+	getIncompleteUploads,
+	saveIncompleteUploads,
+	saveToUploadHistory,
+} from '@/utils/storageUtils'
 import { useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 
@@ -37,6 +41,48 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 	const activeUploads = useRef(0)
 	const fileQueue = useRef<UploadFile[]>([])
 	const activeFileUploads = useRef<Record<string, boolean>>({})
+	const initialized = useRef(false)
+
+	useEffect(() => {
+		if (!initialized.current) {
+			initialized.current = true
+
+			const loadIncompleteUploads = async () => {
+				try {
+					const incompleteFiles = await getIncompleteUploads()
+
+					if (incompleteFiles.length > 0) {
+						updateFiles([...filesRef.current, ...incompleteFiles])
+
+						const filesToQueue = incompleteFiles.filter(file =>
+							['paused', 'error', 'queued'].includes(file.status)
+						)
+
+						fileQueue.current = [
+							...fileQueue.current,
+							...filesToQueue,
+						]
+
+						if (filesToQueue.length > 0)
+							setTimeout(() => processQueue(), 1000)
+					}
+				} catch (error) {
+					console.error('Error loading incomplete uploads:', error)
+				}
+			}
+
+			loadIncompleteUploads()
+		}
+	}, [])
+
+	useEffect(() => {
+		const persistIncompleteUploads = async () =>
+			await saveIncompleteUploads(filesRef.current)
+
+		if (filesRef.current.length > 0) {
+			persistIncompleteUploads()
+		}
+	}, [files])
 
 	useEffect(() => {
 		const saveCompletedFilesForWeb = () => {
@@ -90,8 +136,7 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 			if (!nextFile) continue
 
 			const file = filesRef.current.find(f => f.id === nextFile.id)
-			if (!file || ['paused', 'error', 'completed'].includes(file.status))
-				continue
+			if (!file || ['completed'].includes(file.status)) continue
 
 			startFileUpload(file)
 		}
