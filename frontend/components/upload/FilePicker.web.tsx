@@ -114,6 +114,8 @@ export default function FilePicker({
 			setIncompleteUploads(prev =>
 				prev.filter(f => f.id !== incompleteFile.id)
 			)
+
+			onError('File added. Press the play button to resume the upload.')
 		}
 
 		input.click()

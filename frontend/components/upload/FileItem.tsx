@@ -135,7 +135,7 @@ export const FileItem = ({
 											: 'play'
 									}
 									size={20}
-									color='gray'
+									color='white'
 								/>
 							</TouchableOpacity>
 						)}

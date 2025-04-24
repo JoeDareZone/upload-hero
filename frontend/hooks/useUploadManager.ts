@@ -126,19 +126,6 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 			}
 
 			updateFileStatus(file.id, updatedStatus)
-
-			const isAlreadyInQueue = fileQueue.current.some(
-				queuedFile => queuedFile.id === file.id
-			)
-
-			if (!isAlreadyInQueue) {
-				const updatedFile = filesRef.current.find(f => f.id === file.id)
-				if (updatedFile) {
-					fileQueue.current.push(updatedFile)
-				}
-			}
-
-			setTimeout(() => resumeUpload(file.id), 500)
 		} else if (file.uploadedChunks > 0) {
 			updateFiles([
 				...filesRef.current,
@@ -147,12 +134,6 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 					status: 'paused',
 				},
 			])
-
-			const updatedFile = filesRef.current.find(f => f.id === file.id)
-			if (updatedFile) {
-				fileQueue.current.push(updatedFile)
-				setTimeout(() => resumeUpload(file.id), 500)
-			}
 		} else {
 			fileQueue.current.push(file)
 
