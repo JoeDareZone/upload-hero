@@ -31,6 +31,7 @@ type FileUploadActions = {
 	resumeUpload: (fileId: string) => void
 	cancelUpload: (fileId: string) => void
 	clearAllFiles: () => void
+	loadIncompleteUploads: (isAllFilesUploaded: boolean) => void
 }
 
 export const useUploadManager = (): FileUploadState & FileUploadActions => {
@@ -42,40 +43,6 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 	const fileQueue = useRef<UploadFile[]>([])
 	const activeFileUploads = useRef<Record<string, boolean>>({})
 	const initialized = useRef(false)
-
-	useEffect(() => {
-		if (!initialized.current) {
-			initialized.current = true
-
-			const loadIncompleteUploads = async () => {
-				try {
-					const incompleteFiles = await getIncompleteUploads()
-
-					if (incompleteFiles.length > 0) {
-						updateFiles([...filesRef.current, ...incompleteFiles])
-
-						const filesToQueue = incompleteFiles.filter(file =>
-							['paused', 'error', 'queued'].includes(file.status)
-						)
-
-						fileQueue.current = [
-							...fileQueue.current,
-							...filesToQueue,
-						]
-
-						if (filesToQueue.length > 0)
-							setTimeout(() => processQueue(), 1000)
-					}
-				} catch (error) {
-					console.error('Error loading incomplete uploads:', error)
-				}
-			}
-
-			if (Platform.OS !== 'web') {
-				loadIncompleteUploads()
-			}
-		}
-	}, [])
 
 	useEffect(() => {
 		const persistIncompleteUploads = async () =>
@@ -99,6 +66,35 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 
 		saveCompletedFilesForWeb()
 	}, [files])
+
+	const loadIncompleteUploads = async (isAllFilesUploaded: boolean) => {
+		if (!initialized.current) {
+			initialized.current = true
+			try {
+				const incompleteFiles = await getIncompleteUploads()
+
+				if (incompleteFiles.length > 0) {
+					if (isAllFilesUploaded) {
+						await saveIncompleteUploads([])
+						return
+					}
+
+					updateFiles([...filesRef.current, ...incompleteFiles])
+
+					const filesToQueue = incompleteFiles.filter(file =>
+						['paused', 'error', 'queued'].includes(file.status)
+					)
+
+					fileQueue.current = [...fileQueue.current, ...filesToQueue]
+
+					if (filesToQueue.length > 0)
+						setTimeout(() => processQueue(), 1000)
+				}
+			} catch (error) {
+				console.error('Error loading incomplete uploads:', error)
+			}
+		}
+	}
 
 	const updateFiles = (updated: UploadFile[]) => {
 		filesRef.current = updated
@@ -160,7 +156,7 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 			if (!nextFile) continue
 
 			const file = filesRef.current.find(f => f.id === nextFile.id)
-			if (!file || ['completed'].includes(file.status)) continue
+			if (!file || file.status === 'completed') continue
 
 			startFileUpload(file)
 		}
@@ -233,6 +229,8 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 	}
 
 	const startFileUpload = async (file: UploadFile) => {
+		if (file.status === 'completed') return
+
 		if (activeFileUploads.current[file.id]) return
 
 		activeUploads.current += 1
@@ -388,10 +386,21 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 		const file = filesRef.current.find(f => f.id === fileId)
 		if (!file) return
 
+		if (file.status === 'completed') return
+
 		try {
 			const updateStatusFromServer = async () => {
 				try {
 					const status = await checkUploadStatus(file.id)
+
+					if (status.chunksReceived === file.totalChunks) {
+						updateFileStatus(fileId, {
+							status: 'completed',
+							uploadedChunks: file.totalChunks,
+						})
+						return null
+					}
+
 					updateFileStatus(fileId, {
 						uploadedChunks: status.chunksReceived,
 					})
@@ -451,6 +460,7 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 		files,
 		isUploading,
 		enqueueFile,
+		loadIncompleteUploads,
 		processQueue,
 		pauseUpload,
 		resumeUpload,

@@ -30,6 +30,7 @@ export default function HomeScreen() {
 		cancelUpload,
 		isUploading,
 		clearAllFiles,
+		loadIncompleteUploads,
 	} = useUploadManager()
 
 	const {
@@ -61,6 +62,10 @@ export default function HomeScreen() {
 
 	const allErrors = [...errors, ...dragDropErrors]
 	const isWeb = Platform.OS === 'web'
+
+	useEffect(() => {
+		loadIncompleteUploads(isAllFilesUploaded)
+	}, [])
 
 	useEffect(() => {
 		const trackUploadIds = () => {
