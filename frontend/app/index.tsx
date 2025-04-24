@@ -66,6 +66,12 @@ export default function HomeScreen() {
 	const onPickerError = (errorMsg: string) =>
 		setDragDropErrors(prev => [...prev, errorMsg])
 
+	const handleClearAllFiles = () => {
+		clearAllFiles()
+		clearErrors()
+		setDragDropErrors([])
+	}
+
 	return (
 		<SafeAreaView className='flex-1 bg-gray-900'>
 			<View className={`flex-1 p-4 ${isWeb && 'web-container'}`}>
@@ -109,7 +115,7 @@ export default function HomeScreen() {
 					{files.length > 0 && (
 						<View className='flex-row justify-end mb-2'>
 							<TouchableOpacity
-								onPress={clearAllFiles}
+								onPress={handleClearAllFiles}
 								className={`bg-red-600 px-3 py-1.5 rounded-lg ${
 									isWeb ? 'hover-highlight web-clickable' : ''
 								}`}
@@ -134,7 +140,13 @@ export default function HomeScreen() {
 				</View>
 
 				<ActionButton
-					onPress={isAllFilesUploaded ? clearAllFiles : processQueue}
+					onPress={() => {
+						if (isAllFilesUploaded) {
+							handleClearAllFiles()
+						} else {
+							processQueue()
+						}
+					}}
 					disabled={
 						(!hasQueuedFiles || isUploading) && !isAllFilesUploaded
 					}
