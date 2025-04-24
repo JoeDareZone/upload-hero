@@ -6,34 +6,41 @@ export const createChunks = (file: UploadFile): UploadChunk[] => {
 	const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
 	const chunks: UploadChunk[] = []
 
+	const isResumed = file.uploadedChunks > 0
+
 	for (let i = 0; i < totalChunks; i++) {
 		const start = i * CHUNK_SIZE
 		const end = Math.min(file.size, start + CHUNK_SIZE)
+		const chunkIndex = i + 1
+
+		const isChunkAlreadyUploaded =
+			isResumed && chunkIndex <= file.uploadedChunks
 
 		const chunk: UploadChunk = {
 			fileId: file.id,
-			chunkIndex: i + 1,
+			chunkIndex,
 			start,
 			end,
 			status: 'queued',
 			retries: 0,
 			uri: file.uri,
+			isResume: isChunkAlreadyUploaded,
 		}
 
 		if (Platform.OS === 'web') {
-			const checkIfFileIsBeingResumed = () => {
-				if (file.file instanceof File) {
-					const blobSlice = file.file.slice(start, end)
-					chunk.uri = URL.createObjectURL(blobSlice)
-					chunk.file = new File([blobSlice], `chunk_${i + 1}`, {
-						type: file.file.type,
-					})
-				} else {
+			if (file.file instanceof File) {
+				const blobSlice = file.file.slice(start, end)
+				chunk.uri = URL.createObjectURL(blobSlice)
+				chunk.file = new File([blobSlice], `chunk_${chunkIndex}`, {
+					type: file.file.type,
+				})
+
+				if (isChunkAlreadyUploaded) {
 					chunk.isResume = true
 				}
+			} else {
+				chunk.isResume = true
 			}
-
-			checkIfFileIsBeingResumed()
 		}
 
 		chunks.push(chunk)

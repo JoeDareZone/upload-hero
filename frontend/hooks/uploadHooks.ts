@@ -8,13 +8,31 @@ import {
 import { generateFileId } from '@/utils/helpers'
 import { useState } from 'react'
 
-export const createUploadFile = (file: any): UploadFile => ({
-	...file,
-	id: generateFileId(),
-	status: 'queued',
-	totalChunks: Math.ceil(file.size / CHUNK_SIZE),
-	uploadedChunks: 0,
-})
+export const createUploadFile = (file: any): UploadFile => {
+	const checkIfUploadMetadataExists = (file: any) => {
+		if (file.id && (file.uploadedChunks !== undefined || file.status)) {
+			return {
+				...file,
+				totalChunks:
+					file.totalChunks || Math.ceil(file.size / CHUNK_SIZE),
+				uploadedChunks: file.uploadedChunks || 0,
+				status: file.status || 'paused',
+			}
+		}
+	}
+
+	const uploadFile = checkIfUploadMetadataExists(file)
+
+	if (uploadFile) return uploadFile
+
+	return {
+		...file,
+		id: generateFileId(),
+		status: 'queued',
+		totalChunks: Math.ceil(file.size / CHUNK_SIZE),
+		uploadedChunks: 0,
+	}
+}
 
 export const useFileSelection = (
 	enqueueFile: (file: UploadFile) => void,

@@ -106,7 +106,7 @@ export default function FilePicker({
 				...incompleteFile,
 				file: file,
 				uri: URL.createObjectURL(file),
-				status: 'queued',
+				status: 'paused',
 			} as UploadFile
 
 			onFilesSelected([updatedFile])

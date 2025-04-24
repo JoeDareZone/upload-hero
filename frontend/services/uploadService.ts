@@ -77,18 +77,24 @@ async function registerBackgroundUploadTask() {
 }
 
 export const uploadChunk = async (chunk: UploadChunk) => {
+	// If this is a resumed chunk, don't bother with the actual upload
+	if (chunk.isResume) {
+		console.log(
+			`Chunk ${chunk.chunkIndex} for file ${chunk.fileId} is already uploaded (marked as isResume=true)`
+		)
+		return true
+	}
+
 	const formData = new FormData()
 
 	try {
 		if (Platform.OS === 'web') {
 			if (chunk.file instanceof File) {
 				formData.append('chunk', chunk.file)
-			} else if (chunk.isResume) {
-				console.log(
-					`Chunk ${chunk.chunkIndex} is part of a resumed upload, skipping direct upload`
-				)
-				return true
 			} else {
+				console.warn(
+					`Chunk ${chunk.chunkIndex} has no file object, using blob from URI`
+				)
 				const response = await fetch(chunk.uri)
 				const blob = await response.blob()
 				formData.append('chunk', blob)
@@ -103,6 +109,13 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 
 		formData.append('uploadId', chunk.fileId)
 		formData.append('chunkIndex', chunk.chunkIndex.toString())
+
+		// Log the chunk upload attempt
+		if (Platform.OS === 'web') {
+			console.log(
+				`Uploading chunk ${chunk.chunkIndex} for file ${chunk.fileId}`
+			)
+		}
 
 		await axios.post(`${API_BASE_URL}/upload-chunk`, formData, {
 			headers: {
@@ -119,6 +132,7 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 
 		return true
 	} catch (error) {
+		console.error(`Upload chunk ${chunk.chunkIndex} failed:`, error)
 		throw new Error(
 			`Upload chunk ${
 				chunk.chunkIndex

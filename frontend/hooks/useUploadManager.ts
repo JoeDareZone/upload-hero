@@ -114,17 +114,58 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 	}
 
 	const enqueueFile = (file: UploadFile) => {
-		fileQueue.current.push(file)
+		const existingFile = filesRef.current.find(f => f.id === file.id)
 
-		updateFiles([
-			...filesRef.current,
-			{
-				...file,
-				status: 'queued',
-				totalChunks: Math.ceil(file.size / CHUNK_SIZE),
-				uploadedChunks: 0,
-			},
-		])
+		if (existingFile) {
+			const updatedStatus = {
+				file: file.file,
+				uri: file.uri,
+				uploadedChunks: existingFile.uploadedChunks,
+				totalChunks: existingFile.totalChunks,
+				status: 'paused' as const,
+			}
+
+			updateFileStatus(file.id, updatedStatus)
+
+			const isAlreadyInQueue = fileQueue.current.some(
+				queuedFile => queuedFile.id === file.id
+			)
+
+			if (!isAlreadyInQueue) {
+				const updatedFile = filesRef.current.find(f => f.id === file.id)
+				if (updatedFile) {
+					fileQueue.current.push(updatedFile)
+				}
+			}
+
+			setTimeout(() => resumeUpload(file.id), 500)
+		} else if (file.uploadedChunks > 0) {
+			updateFiles([
+				...filesRef.current,
+				{
+					...file,
+					status: 'paused',
+				},
+			])
+
+			const updatedFile = filesRef.current.find(f => f.id === file.id)
+			if (updatedFile) {
+				fileQueue.current.push(updatedFile)
+				setTimeout(() => resumeUpload(file.id), 500)
+			}
+		} else {
+			fileQueue.current.push(file)
+
+			updateFiles([
+				...filesRef.current,
+				{
+					...file,
+					status: 'queued',
+					totalChunks: Math.ceil(file.size / CHUNK_SIZE),
+					uploadedChunks: 0,
+				},
+			])
+		}
 	}
 
 	const processQueue = () => {
@@ -224,7 +265,10 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 			let updatedFile = file
 
 			const initiateOrResumeUpload = async () => {
-				if (!uploadId || file.uploadedChunks === 0) {
+				if (
+					!uploadId ||
+					(file.uploadedChunks === 0 && file.status !== 'paused')
+				) {
 					uploadId = await initiateUpload(file)
 					updatedFile = { ...file, id: uploadId }
 					updateFileStatus(file.id, { id: uploadId })
@@ -238,8 +282,10 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 
 			updatedFile =
 				filesRef.current.find(f => f.id === uploadId) || updatedFile
-
-			const updateUploadProgressOnMismatch = () => {
+			const checkAndUseServerChunksIfMismatch = (
+				status: { chunksReceived: number },
+				updatedFile: UploadFile
+			) => {
 				if (status.chunksReceived !== updatedFile.uploadedChunks) {
 					updateFileStatus(updatedFile.id, {
 						uploadedChunks: status.chunksReceived,
@@ -250,7 +296,7 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 				}
 			}
 
-			updateUploadProgressOnMismatch()
+			checkAndUseServerChunksIfMismatch(status, updatedFile)
 
 			const isCompleted =
 				status.chunksReceived === updatedFile.totalChunks
@@ -295,7 +341,12 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 						return false
 					}
 
-					if (checkIfChunkAlreadyUploaded()) continue
+					if (checkIfChunkAlreadyUploaded()) {
+						if (!chunk.isResume) {
+							updateFileProgress(updatedFile.id)
+						}
+						continue
+					}
 
 					const uploadChunkAndCheckIfSuccess = async () => {
 						const uploadSuccess = await uploadChunkWithRetry(
@@ -356,36 +407,50 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 		const file = filesRef.current.find(f => f.id === fileId)
 		if (!file) return
 
-		updateFileStatus(fileId, { status: 'uploading' })
-
 		try {
 			const updateStatusFromServer = async () => {
-				const status = await checkUploadStatus(file.id)
-				updateFileStatus(fileId, {
-					uploadedChunks: status.chunksReceived,
-				})
+				try {
+					const status = await checkUploadStatus(file.id)
+					updateFileStatus(fileId, {
+						uploadedChunks: status.chunksReceived,
+					})
+					return status
+				} catch (error) {
+					console.error('Error checking upload status:', error)
+					return null
+				}
 			}
 
+			let serverStatus = null
 			if (file.id && file.uploadedChunks > 0) {
-				await updateStatusFromServer()
+				serverStatus = await updateStatusFromServer()
 			}
+
+			const isActivelyUploading = activeFileUploads.current[fileId]
+			const isAlreadyInQueue = fileQueue.current.some(
+				queuedFile => queuedFile.id === fileId
+			)
+
+			if (!isActivelyUploading && !isAlreadyInQueue) {
+				const updatedFile = filesRef.current.find(f => f.id === fileId)
+				if (!updatedFile) return
+
+				updateFileStatus(fileId, { status: 'paused' })
+
+				const fileToQueue = filesRef.current.find(f => f.id === fileId)
+				if (fileToQueue) {
+					fileQueue.current.push(fileToQueue)
+				}
+			}
+
+			processQueue()
 		} catch (error) {
-			console.error('Error checking upload status:', error)
+			console.error('Error resuming upload:', error)
+			updateFileStatus(fileId, {
+				status: 'error',
+				errorMessage: 'Failed to resume upload',
+			})
 		}
-
-		const isActivelyUploading = activeFileUploads.current[fileId]
-		const isAlreadyInQueue = fileQueue.current.some(
-			queuedFile => queuedFile.id === fileId
-		)
-
-		if (!isActivelyUploading && !isAlreadyInQueue) {
-			const updatedFile = filesRef.current.find(f => f.id === fileId)
-			if (!updatedFile) return
-
-			fileQueue.current.push(updatedFile)
-		}
-
-		processQueue()
 	}
 
 	const cancelUpload = (fileId: string) => {

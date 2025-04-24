@@ -111,7 +111,9 @@ export const getIncompleteUploads = async (): Promise<UploadFile[]> => {
 
 		const uploadsString = await storage.getItem(INCOMPLETE_UPLOADS_KEY)
 
-		return uploadsString ? JSON.parse(uploadsString) : []
+		const uploads = uploadsString ? JSON.parse(uploadsString) : []
+
+		return uploads
 	} catch (error) {
 		console.error('Error retrieving incomplete uploads:', error)
 		return []
