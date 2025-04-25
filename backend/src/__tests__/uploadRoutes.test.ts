@@ -12,6 +12,23 @@ jest.mock('../constants', () => ({
 jest.mock('../controllers/finalizeUpload')
 jest.mock('../models/FileChecksum')
 
+// Create mock implementations for imported functions
+const findFileByChecksum = jest.fn()
+const storeFileChecksum = jest.fn()
+const reassembleFile = jest.fn()
+
+// Mock the FileChecksum module to return our mocks
+jest.mock('../models/FileChecksum', () => ({
+	findFileByChecksum: findFileByChecksum,
+	storeFileChecksum: storeFileChecksum,
+	cleanupOldChecksums: jest.fn(),
+}))
+
+// Mock the finalizeUpload controller
+jest.mock('../controllers/finalizeUpload', () => ({
+	reassembleFile: reassembleFile,
+}))
+
 jest.mock('../services/redisService', () => ({
 	connect: jest.fn().mockResolvedValue(undefined),
 	storeUploadMetadata: jest.fn().mockResolvedValue(undefined),
@@ -369,7 +386,6 @@ describe('Upload Routes', () => {
 					path: '/tmp/upload-1234',
 				} as any,
 			}
-
 			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
 			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
@@ -382,7 +398,6 @@ describe('Upload Routes', () => {
 				chunks: { received: 0 },
 			})
 			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
-
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
 			;(fs.readJSON as jest.Mock).mockResolvedValueOnce({
 				chunks: { received: 0 },
@@ -429,7 +444,6 @@ describe('Upload Routes', () => {
 					path: '/tmp/upload-1234',
 				} as any,
 			}
-
 			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
 			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
@@ -443,7 +457,6 @@ describe('Upload Routes', () => {
 				fileName: 'test.jpg',
 			})
 			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
-
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
 			;(fs.readJSON as jest.Mock).mockResolvedValueOnce({
 				fileName: 'test.jpg',
@@ -472,7 +485,6 @@ describe('Upload Routes', () => {
 					path: '/tmp/upload-1234',
 				} as any,
 			}
-
 			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
 			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
@@ -485,7 +497,6 @@ describe('Upload Routes', () => {
 				chunks: { received: 0 },
 			})
 			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
-
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
 			;(fs.readJSON as jest.Mock).mockRejectedValueOnce(
 				new Error('Metadata file error')
@@ -515,10 +526,8 @@ describe('Upload Routes', () => {
 					path: '/tmp/upload-1234',
 				} as any,
 			}
-
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
 			;(fs.remove as jest.Mock).mockResolvedValueOnce(undefined)
-
 			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
 			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
 
@@ -530,7 +539,6 @@ describe('Upload Routes', () => {
 				chunks: { received: 1 },
 			})
 			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
-
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
 
 			await uploadChunkHandler(req as Request, res as Response)
@@ -700,6 +708,164 @@ describe('Upload Routes', () => {
 			)
 		})
 
+		test('should return 400 when fileName is missing and not found in metadata', async () => {
+			const redisService = require('../services/redisService')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+				},
+			}
+
+			// No fileName in metadata
+			redisService.getUploadMetadata.mockResolvedValueOnce({
+				fileSize: 1024,
+				userId: 'test-user',
+			})
+
+			await finalizeUploadHandler(req as Request, res as Response)
+
+			expect(statusMock).toHaveBeenCalledWith(400)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: false,
+				message: 'Missing fileName and not found in metadata',
+			})
+		})
+
+		test('should update metadata with totalChunks when provided', async () => {
+			const redisService = require('../services/redisService')
+			const { reassembleFile } = require('../controllers/finalizeUpload')
+			const { storeFileChecksum } = require('../models/FileChecksum')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					fileName: 'test.jpg',
+					userId: 'test-user',
+					totalChunks: 5,
+					checksum: 'abc123',
+				},
+			}
+
+			const metaData = {
+				fileName: 'test.jpg',
+				fileSize: 1024,
+				userId: 'test-user',
+				chunks: {
+					received: 5,
+					total: 0,
+				},
+			}
+
+			redisService.getUploadMetadata.mockResolvedValueOnce(metaData)
+			findFileByChecksum.mockResolvedValueOnce(null)
+
+			// Mock the fs.pathExists to return true for metadata.json
+			;(fs.pathExists as jest.Mock).mockImplementation((path: string) => {
+				if (path.endsWith('metadata.json')) {
+					return Promise.resolve(true)
+				}
+				return Promise.resolve(false)
+			})
+
+			// Mock fs.readJSON to return metadata with chunks
+			;(fs.readJSON as jest.Mock).mockResolvedValueOnce({
+				fileName: 'test.jpg',
+				chunks: {
+					received: 5,
+					total: 0,
+				},
+			})
+
+			reassembleFile.mockResolvedValueOnce({
+				success: true,
+				filePath: '/mock/uploads/final/file.jpg',
+			})
+
+			await finalizeUploadHandler(req as Request, res as Response)
+
+			// Check that writeJSON was called with updated metadata
+			expect(fs.writeJSON).toHaveBeenCalledWith(
+				expect.stringContaining('metadata.json'),
+				expect.objectContaining({
+					chunks: expect.objectContaining({
+						total: 5,
+					}),
+				})
+			)
+
+			expect(reassembleFile).toHaveBeenCalledWith(
+				'test-upload-id',
+				'test.jpg',
+				'test-user'
+			)
+		})
+
+		test('should handle errors in updateMetadataWithTotalChunks', async () => {
+			const redisService = require('../services/redisService')
+			const { reassembleFile } = require('../controllers/finalizeUpload')
+			const { storeFileChecksum } = require('../models/FileChecksum')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					fileName: 'test.jpg',
+					userId: 'test-user',
+					totalChunks: 5,
+					checksum: 'abc123',
+				},
+			}
+
+			const metaData = {
+				fileName: 'test.jpg',
+				fileSize: 1024,
+				userId: 'test-user',
+			}
+
+			redisService.getUploadMetadata.mockResolvedValueOnce(metaData)
+			findFileByChecksum.mockResolvedValueOnce(null)
+
+			// Mock the fs.pathExists to return true for metadata.json
+			;(fs.pathExists as jest.Mock).mockImplementation((path: string) => {
+				if (path.endsWith('metadata.json')) {
+					return Promise.resolve(true)
+				}
+				return Promise.resolve(false)
+			})
+
+			// Mock fs.readJSON to throw an error
+			;(fs.readJSON as jest.Mock).mockRejectedValueOnce(
+				new Error('Read error')
+			)
+
+			// Spy on console.error
+			const consoleErrorSpy = jest
+				.spyOn(console, 'error')
+				.mockImplementation()
+
+			reassembleFile.mockResolvedValueOnce({
+				success: true,
+				filePath: '/mock/uploads/final/file.jpg',
+			})
+
+			await finalizeUploadHandler(req as Request, res as Response)
+
+			// Verify console.error was called
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				'Error updating metadata:',
+				expect.any(Error)
+			)
+
+			// Restore the console.error mock
+			consoleErrorSpy.mockRestore()
+
+			expect(reassembleFile).toHaveBeenCalledWith(
+				'test-upload-id',
+				'test.jpg',
+				'test-user'
+			)
+		})
+
 		test('should handle unsuccessful reassembly', async () => {
 			const redisService = require('../services/redisService')
 			const { reassembleFile } = require('../controllers/finalizeUpload')
@@ -780,7 +946,6 @@ describe('Upload Routes', () => {
 			}
 
 			redisService.clearUploadData.mockResolvedValueOnce(undefined)
-
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
 			;(fs.remove as jest.Mock).mockResolvedValueOnce(undefined)
 
@@ -806,7 +971,6 @@ describe('Upload Routes', () => {
 					uploadId: 'nonexistent-id',
 				},
 			}
-
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
 
 			await deleteUploadHandler(req as Request, res as Response)
