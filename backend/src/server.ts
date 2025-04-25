@@ -25,6 +25,8 @@ const initRedis = async () => {
 	}
 }
 
+const connections = new Set<any>()
+
 const server = app.listen(4000, () => {
 	console.log('Server running on port 4000')
 
@@ -32,22 +34,55 @@ const server = app.listen(4000, () => {
 	cleanupService.start()
 })
 
-process.on('SIGTERM', async () => {
-	console.log('SIGTERM signal received: closing HTTP server')
-	await redisService.disconnect()
-	cleanupService.stop()
-	server.close(() => {
-		console.log('HTTP server closed')
-		process.exit(0)
+server.on('connection', connection => {
+	connections.add(connection)
+	connection.on('close', () => {
+		connections.delete(connection)
 	})
 })
 
-process.on('SIGINT', async () => {
-	console.log('SIGINT signal received: closing HTTP server')
-	await redisService.disconnect()
-	cleanupService.stop()
-	server.close(() => {
-		console.log('HTTP server closed')
+let isShuttingDown = false
+
+const shutdownGracefully = async (signal: string) => {
+	if (isShuttingDown) {
+		console.log('Shutdown already in progress...')
+		return
+	}
+
+	isShuttingDown = true
+	console.log(`${signal} signal received: closing HTTP server...`)
+
+	try {
+		console.log(`Closing ${connections.size} active connections...`)
+		for (const connection of connections) {
+			connection.destroy()
+		}
+
+		console.log('Closing HTTP server...')
+		await new Promise<void>(resolve => {
+			server.close(() => {
+				console.log('HTTP server closed')
+				resolve()
+			})
+		})
+
+		console.log('Stopping cleanup service...')
+		cleanupService.stop()
+
+		console.log('Disconnecting from Redis...')
+		await redisService.disconnect()
+
 		process.exit(0)
-	})
+	} catch (error) {
+		console.error(`Error during shutdown (${signal}):`, error)
+		process.exit(1)
+	}
+}
+
+process.on('SIGTERM', () => shutdownGracefully('SIGTERM'))
+process.on('SIGINT', () => shutdownGracefully('SIGINT'))
+
+process.on('uncaughtException', error => {
+	console.error('Uncaught Exception:', error)
+	process.exit(1)
 })
