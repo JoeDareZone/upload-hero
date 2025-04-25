@@ -142,13 +142,17 @@ export default function HomeScreen() {
 				</View>
 
 				{showTestPanel && (
-					<>
+					<View className={`${IS_WEB && 'flex-row gap-4'}`}>
 						<RedisTestPanel
 							recentUploadIds={recentUploadIds}
 							savedUploadId={savedUploadId}
 							setSavedUploadId={setSavedUploadId}
 						/>
-						<View className='p-4 bg-gray-800 rounded-lg mb-4'>
+						<View
+							className={`p-4 bg-gray-800 rounded-lg mb-4 ${
+								IS_WEB ? 'flex-1' : ''
+							}`}
+						>
 							<Text className='text-white font-bold mb-2'>
 								📊 Real-Time Monitoring
 							</Text>
@@ -176,7 +180,7 @@ export default function HomeScreen() {
 								%
 							</Text>
 						</View>
-					</>
+					</View>
 				)}
 
 				<FilePicker
