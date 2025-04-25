@@ -12,7 +12,6 @@ jest.mock('../constants', () => ({
 jest.mock('../controllers/finalizeUpload')
 jest.mock('../models/FileChecksum')
 
-// Mock Redis
 jest.mock('../services/redisService', () => ({
 	connect: jest.fn().mockResolvedValue(undefined),
 	storeUploadMetadata: jest.fn().mockResolvedValue(undefined),
@@ -22,6 +21,7 @@ jest.mock('../services/redisService', () => ({
 	getChunksReceived: jest.fn().mockResolvedValue(0),
 	setChunkStatus: jest.fn().mockResolvedValue(undefined),
 	updateChunksList: jest.fn().mockResolvedValue(undefined),
+	clearUploadData: jest.fn().mockResolvedValue(undefined),
 }))
 
 jest.mock('fs-extra')
@@ -37,9 +37,12 @@ jest.mock('multer', () => {
 	})
 })
 
-// Import after mocks are set up
 import {
+	deleteUploadHandler,
+	finalizeUploadHandler,
+	getMetricsHandler,
 	initiateUploadHandler,
+	uploadChunkHandler,
 	uploadStatusHandler,
 } from '../routes/uploadRoutes'
 
@@ -51,7 +54,6 @@ describe('Upload Routes', () => {
 	let consoleErrorSpy: jest.SpyInstance
 
 	beforeEach(() => {
-		// Spy on console.error to silence it in tests
 		consoleErrorSpy = jest
 			.spyOn(console, 'error')
 			.mockImplementation(() => {})
@@ -74,7 +76,6 @@ describe('Upload Routes', () => {
 	})
 
 	afterEach(() => {
-		// Restore console.error
 		consoleErrorSpy.mockRestore()
 	})
 
@@ -89,7 +90,6 @@ describe('Upload Routes', () => {
 				},
 			}
 
-			// Mock implementations
 			const redisService = require('../services/redisService')
 			;(fs.ensureDirSync as jest.Mock).mockImplementation(() => {})
 			;(fs.writeJSONSync as jest.Mock).mockImplementation(() => {})
@@ -211,7 +211,6 @@ describe('Upload Routes', () => {
 
 			const redisService = require('../services/redisService')
 
-			// Mock filesystem exists and read operations
 			;(fs.pathExistsSync as jest.Mock).mockReturnValue(true)
 			;(fs.readJSONSync as jest.Mock).mockReturnValue(mockMetadata)
 			;(fs.readdirSync as jest.Mock).mockReturnValue([
@@ -228,7 +227,6 @@ describe('Upload Routes', () => {
 
 			await uploadStatusHandler(req as Request, res as Response)
 
-			// Verify Redis cache was updated
 			expect(redisService.storeUploadMetadata).toHaveBeenCalledWith(
 				'test-upload-id',
 				mockMetadata
@@ -261,6 +259,596 @@ describe('Upload Routes', () => {
 			redisService.connect.mockRejectedValueOnce(error)
 
 			await uploadStatusHandler(req as Request, res as Response)
+
+			expect(statusMock).toHaveBeenCalledWith(500)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: false,
+				message: 'Test error',
+			})
+		})
+	})
+
+	describe('GET /metrics', () => {
+		test('should return system metrics', async () => {
+			req = {}
+
+			// Mock the metrics response data
+			const mockMetrics = {
+				activeUploads: 0,
+				successfulUploads: 0,
+				failedUploads: 0,
+				cpuLoad: [0, 0, 0], // Mock static values
+				memory: {
+					free: 1000,
+					total: 5000,
+				},
+			}
+
+			// Override the res.json method to directly call the mock
+			jsonMock.mockImplementation(data => {
+				return res
+			})
+
+			await getMetricsHandler(req as Request, res as Response)
+
+			// Just verify that json was called, but don't check specific values
+			expect(jsonMock).toHaveBeenCalled()
+			// Verify the shape of the data
+			const calledWith = jsonMock.mock.calls[0][0]
+			expect(calledWith).toHaveProperty('activeUploads')
+			expect(calledWith).toHaveProperty('successfulUploads')
+			expect(calledWith).toHaveProperty('failedUploads')
+			expect(calledWith).toHaveProperty('cpuLoad')
+			expect(calledWith).toHaveProperty('memory')
+			expect(calledWith.memory).toHaveProperty('free')
+			expect(calledWith.memory).toHaveProperty('total')
+		})
+	})
+
+	describe('POST /upload-chunk', () => {
+		test('should return 400 if uploadId is missing', async () => {
+			req = {
+				body: {
+					chunkIndex: '0',
+				},
+				file: {
+					path: '/tmp/upload-1234',
+				} as any,
+			}
+
+			await uploadChunkHandler(req as Request, res as Response)
+
+			expect(statusMock).toHaveBeenCalledWith(400)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: false,
+				message: 'Missing uploadId or chunkIndex',
+			})
+		})
+
+		test('should return 400 if chunkIndex is missing', async () => {
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+				},
+				file: {
+					path: '/tmp/upload-1234',
+				} as any,
+			}
+
+			await uploadChunkHandler(req as Request, res as Response)
+
+			expect(statusMock).toHaveBeenCalledWith(400)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: false,
+				message: 'Missing uploadId or chunkIndex',
+			})
+		})
+
+		test('should return 400 if no file is received', async () => {
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					chunkIndex: '0',
+				},
+			}
+
+			await uploadChunkHandler(req as Request, res as Response)
+
+			expect(statusMock).toHaveBeenCalledWith(400)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: false,
+				message: 'No chunk file received',
+			})
+		})
+
+		test('should successfully process a chunk upload', async () => {
+			const redisService = require('../services/redisService')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					chunkIndex: '0',
+				},
+				file: {
+					path: '/tmp/upload-1234',
+				} as any,
+			}
+
+			// Mock implementations
+			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
+			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
+			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
+
+			redisService.setChunkStatus.mockResolvedValueOnce(undefined)
+			redisService.updateChunksList.mockResolvedValueOnce(undefined)
+			redisService.getChunksList.mockResolvedValueOnce([0])
+			redisService.updateChunksReceived.mockResolvedValueOnce(undefined)
+			redisService.getUploadMetadata.mockResolvedValueOnce({
+				chunks: { received: 0 },
+			})
+			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
+
+			// Mock metadata file operations
+			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
+			;(fs.readJSON as jest.Mock).mockResolvedValueOnce({
+				chunks: { received: 0 },
+			})
+			;(fs.writeJSON as jest.Mock).mockResolvedValueOnce(undefined)
+
+			await uploadChunkHandler(req as Request, res as Response)
+
+			expect(fs.ensureDir).toHaveBeenCalledWith(
+				`${MOCK_UPLOAD_DIR}/test-upload-id`
+			)
+			expect(fs.move).toHaveBeenCalledWith(
+				'/tmp/upload-1234',
+				`${MOCK_UPLOAD_DIR}/test-upload-id/chunk_0`
+			)
+			expect(redisService.setChunkStatus).toHaveBeenCalledWith(
+				'test-upload-id',
+				0,
+				'completed'
+			)
+			expect(redisService.updateChunksList).toHaveBeenCalledWith(
+				'test-upload-id',
+				0
+			)
+			expect(redisService.updateChunksReceived).toHaveBeenCalledWith(
+				'test-upload-id',
+				1
+			)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: true,
+				message: 'Chunk 0 received.',
+			})
+		})
+
+		test('should handle metadata without chunks property', async () => {
+			const redisService = require('../services/redisService')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					chunkIndex: '0',
+				},
+				file: {
+					path: '/tmp/upload-1234',
+				} as any,
+			}
+
+			// Mock implementations
+			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
+			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
+			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
+
+			redisService.setChunkStatus.mockResolvedValueOnce(undefined)
+			redisService.updateChunksList.mockResolvedValueOnce(undefined)
+			redisService.getChunksList.mockResolvedValueOnce([0])
+			redisService.updateChunksReceived.mockResolvedValueOnce(undefined)
+
+			// Metadata without chunks property
+			redisService.getUploadMetadata.mockResolvedValueOnce({
+				fileName: 'test.jpg',
+			})
+			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
+
+			// Mock metadata file operations
+			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
+			;(fs.readJSON as jest.Mock).mockResolvedValueOnce({
+				fileName: 'test.jpg',
+			})
+			;(fs.writeJSON as jest.Mock).mockResolvedValueOnce(undefined)
+
+			await uploadChunkHandler(req as Request, res as Response)
+
+			expect(redisService.storeUploadMetadata).not.toHaveBeenCalled()
+			expect(fs.writeJSON).not.toHaveBeenCalled()
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: true,
+				message: 'Chunk 0 received.',
+			})
+		})
+
+		test('should handle error updating filesystem metadata', async () => {
+			const redisService = require('../services/redisService')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					chunkIndex: '0',
+				},
+				file: {
+					path: '/tmp/upload-1234',
+				} as any,
+			}
+
+			// Mock implementations
+			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
+			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
+			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
+
+			redisService.setChunkStatus.mockResolvedValueOnce(undefined)
+			redisService.updateChunksList.mockResolvedValueOnce(undefined)
+			redisService.getChunksList.mockResolvedValueOnce([0])
+			redisService.updateChunksReceived.mockResolvedValueOnce(undefined)
+			redisService.getUploadMetadata.mockResolvedValueOnce({
+				chunks: { received: 0 },
+			})
+			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
+
+			// Mock metadata file operations with an error
+			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
+			;(fs.readJSON as jest.Mock).mockRejectedValueOnce(
+				new Error('Metadata file error')
+			)
+
+			await uploadChunkHandler(req as Request, res as Response)
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				'Error updating metadata:',
+				expect.any(Error)
+			)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: true,
+				message: 'Chunk 0 received.',
+			})
+		})
+
+		test('should replace existing chunk if it exists', async () => {
+			const redisService = require('../services/redisService')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					chunkIndex: '1',
+				},
+				file: {
+					path: '/tmp/upload-1234',
+				} as any,
+			}
+
+			// Mock existing chunk
+			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
+			;(fs.remove as jest.Mock).mockResolvedValueOnce(undefined)
+
+			// Rest of mocks
+			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
+			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
+
+			redisService.setChunkStatus.mockResolvedValueOnce(undefined)
+			redisService.updateChunksList.mockResolvedValueOnce(undefined)
+			redisService.getChunksList.mockResolvedValueOnce([0, 1])
+			redisService.updateChunksReceived.mockResolvedValueOnce(undefined)
+			redisService.getUploadMetadata.mockResolvedValueOnce({
+				chunks: { received: 1 },
+			})
+			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
+
+			// Mock metadata file operations
+			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
+
+			await uploadChunkHandler(req as Request, res as Response)
+
+			expect(fs.remove).toHaveBeenCalledWith(
+				`${MOCK_UPLOAD_DIR}/test-upload-id/chunk_1`
+			)
+			expect(fs.move).toHaveBeenCalledWith(
+				'/tmp/upload-1234',
+				`${MOCK_UPLOAD_DIR}/test-upload-id/chunk_1`
+			)
+		})
+
+		test('should handle errors gracefully', async () => {
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					chunkIndex: '0',
+				},
+				file: {
+					path: '/tmp/upload-1234',
+				} as any,
+			}
+
+			const error = new Error('Test error')
+			;(fs.ensureDir as jest.Mock).mockRejectedValueOnce(error)
+
+			await uploadChunkHandler(req as Request, res as Response)
+
+			expect(statusMock).toHaveBeenCalledWith(500)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: false,
+				message: 'Test error',
+			})
+		})
+	})
+
+	describe('POST /finalize-upload', () => {
+		test('should return 400 if uploadId is missing', async () => {
+			req = {
+				body: {},
+			}
+
+			await finalizeUploadHandler(req as Request, res as Response)
+
+			expect(statusMock).toHaveBeenCalledWith(400)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: false,
+				message: 'Missing uploadId',
+			})
+		})
+
+		test('should successfully finalize an upload', async () => {
+			const redisService = require('../services/redisService')
+			const { reassembleFile } = require('../controllers/finalizeUpload')
+			const {
+				findFileByChecksum,
+				storeFileChecksum,
+			} = require('../models/FileChecksum')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					fileName: 'test.jpg',
+					userId: 'test-user',
+					checksum: 'abc123',
+				},
+			}
+
+			const metaData = {
+				fileName: 'test.jpg',
+				fileSize: 1024,
+				userId: 'test-user',
+			}
+
+			redisService.getUploadMetadata.mockResolvedValueOnce(metaData)
+			findFileByChecksum.mockResolvedValueOnce(null) // No duplicate file
+			reassembleFile.mockResolvedValueOnce({
+				success: true,
+				filePath: '/mock/uploads/final/file.jpg',
+			})
+
+			await finalizeUploadHandler(req as Request, res as Response)
+
+			expect(reassembleFile).toHaveBeenCalledWith(
+				'test-upload-id',
+				'test.jpg',
+				'test-user'
+			)
+			expect(storeFileChecksum).toHaveBeenCalledWith(
+				'abc123',
+				'/mock/uploads/final/file.jpg',
+				'test-user'
+			)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: true,
+				filePath: '/mock/uploads/final/file.jpg',
+			})
+		})
+
+		test('should handle duplicate files', async () => {
+			const redisService = require('../services/redisService')
+			const { findFileByChecksum } = require('../models/FileChecksum')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					fileName: 'test.jpg',
+					userId: 'test-user',
+					checksum: 'abc123',
+				},
+			}
+
+			const metaData = {
+				fileName: 'test.jpg',
+				fileSize: 1024,
+				userId: 'test-user',
+			}
+
+			redisService.getUploadMetadata.mockResolvedValueOnce(metaData)
+			findFileByChecksum.mockResolvedValueOnce('/existing/file/path.jpg')
+
+			await finalizeUploadHandler(req as Request, res as Response)
+
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: true,
+				filePath: '/existing/file/path.jpg',
+				isDuplicate: true,
+			})
+		})
+
+		test('should use metadata values when parameters are missing', async () => {
+			const redisService = require('../services/redisService')
+			const { reassembleFile } = require('../controllers/finalizeUpload')
+			const { storeFileChecksum } = require('../models/FileChecksum')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					checksum: 'abc123',
+				},
+			}
+
+			const metaData = {
+				fileName: 'metadata-filename.jpg',
+				fileSize: 1024,
+				userId: 'metadata-user',
+			}
+
+			redisService.getUploadMetadata.mockResolvedValueOnce(metaData)
+			reassembleFile.mockResolvedValueOnce({
+				success: true,
+				filePath: '/mock/uploads/final/file.jpg',
+			})
+
+			await finalizeUploadHandler(req as Request, res as Response)
+
+			expect(reassembleFile).toHaveBeenCalledWith(
+				'test-upload-id',
+				'metadata-filename.jpg', // Using fileName from metadata
+				'metadata-user' // Using userId from metadata
+			)
+			expect(storeFileChecksum).toHaveBeenCalledWith(
+				'abc123',
+				'/mock/uploads/final/file.jpg',
+				'metadata-user'
+			)
+		})
+
+		test('should handle unsuccessful reassembly', async () => {
+			const redisService = require('../services/redisService')
+			const { reassembleFile } = require('../controllers/finalizeUpload')
+			const { storeFileChecksum } = require('../models/FileChecksum')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					fileName: 'test.jpg',
+					userId: 'test-user',
+					checksum: 'abc123',
+				},
+			}
+
+			redisService.getUploadMetadata.mockResolvedValueOnce({})
+			reassembleFile.mockResolvedValueOnce({
+				success: false,
+				filePath: '',
+				message: 'Failed to reassemble',
+			})
+
+			await finalizeUploadHandler(req as Request, res as Response)
+
+			// Should not store checksum for unsuccessful reassembly
+			expect(storeFileChecksum).not.toHaveBeenCalled()
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: false,
+				filePath: '',
+				message: 'Failed to reassemble',
+			})
+		})
+
+		test('should handle errors gracefully', async () => {
+			const redisService = require('../services/redisService')
+
+			req = {
+				body: {
+					uploadId: 'test-upload-id',
+					fileName: 'test.jpg',
+					userId: 'test-user',
+				},
+			}
+
+			const error = new Error('Test error')
+			redisService.getUploadMetadata.mockRejectedValueOnce(error)
+
+			await finalizeUploadHandler(req as Request, res as Response)
+
+			expect(statusMock).toHaveBeenCalledWith(500)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: false,
+				message: 'Test error',
+			})
+		})
+	})
+
+	describe('DELETE /delete-upload/:uploadId', () => {
+		test('should return 400 if uploadId is missing', async () => {
+			req = {
+				params: {},
+			}
+
+			await deleteUploadHandler(req as Request, res as Response)
+
+			expect(statusMock).toHaveBeenCalledWith(400)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: false,
+				message: 'Missing uploadId',
+			})
+		})
+
+		test('should successfully delete an upload', async () => {
+			const redisService = require('../services/redisService')
+
+			req = {
+				params: {
+					uploadId: 'test-upload-id',
+				},
+			}
+
+			// Mock redis operations
+			redisService.clearUploadData.mockResolvedValueOnce(undefined)
+
+			// Mock fs operations
+			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
+			;(fs.remove as jest.Mock).mockResolvedValueOnce(undefined)
+
+			await deleteUploadHandler(req as Request, res as Response)
+
+			expect(fs.remove).toHaveBeenCalledWith(
+				`${MOCK_UPLOAD_DIR}/test-upload-id`
+			)
+			expect(redisService.clearUploadData).toHaveBeenCalledWith(
+				'test-upload-id'
+			)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: true,
+				message: 'Upload deleted successfully',
+			})
+		})
+
+		test('should handle non-existent upload gracefully', async () => {
+			const redisService = require('../services/redisService')
+
+			req = {
+				params: {
+					uploadId: 'nonexistent-id',
+				},
+			}
+
+			// Mock fs operations
+			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
+
+			await deleteUploadHandler(req as Request, res as Response)
+
+			expect(redisService.clearUploadData).toHaveBeenCalledWith(
+				'nonexistent-id'
+			)
+			expect(jsonMock).toHaveBeenCalledWith({
+				success: true,
+				message: 'Upload deleted successfully',
+			})
+		})
+
+		test('should handle errors gracefully', async () => {
+			req = {
+				params: {
+					uploadId: 'test-upload-id',
+				},
+			}
+
+			const error = new Error('Test error')
+			;(fs.pathExists as jest.Mock).mockRejectedValueOnce(error)
+
+			await deleteUploadHandler(req as Request, res as Response)
 
 			expect(statusMock).toHaveBeenCalledWith(500)
 			expect(jsonMock).toHaveBeenCalledWith({

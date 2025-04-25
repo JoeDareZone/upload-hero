@@ -8,9 +8,13 @@ interface FileReference {
 	timestamp: number
 }
 
-const CHECKSUMS_DIR = path.join(UPLOAD_DIR, 'checksums')
+export const CHECKSUMS_DIR = path.join(UPLOAD_DIR, 'checksums')
 
-fs.ensureDirSync(CHECKSUMS_DIR)
+try {
+	fs.ensureDirSync(CHECKSUMS_DIR)
+} catch (error) {
+	console.error('Error creating checksums directory:', error)
+}
 
 export async function findFileByChecksum(
 	checksum: string,

@@ -1,15 +1,10 @@
 import redisService from '../services/redisService'
 
-// Mock Redis module
 jest.mock('redis', () => {
 	const mockRedisClient = {
 		connect: jest.fn().mockResolvedValue(undefined),
 		quit: jest.fn().mockResolvedValue(undefined),
 		on: jest.fn().mockImplementation(function (this: any, event, callback) {
-			// Only trigger callbacks during initialization but not log anything
-			if (event === 'connect' || event === 'error') {
-				// Don't actually call the callback as it would log messages
-			}
 			return this
 		}),
 		set: jest.fn().mockResolvedValue(undefined),
@@ -25,7 +20,6 @@ jest.mock('redis', () => {
 	}
 })
 
-// Get access to internal Redis client in redisService
 const internalClient = (redisService as any).client
 
 describe('RedisService', () => {
@@ -33,19 +27,16 @@ describe('RedisService', () => {
 	let consoleLogSpy: jest.SpyInstance
 
 	beforeEach(() => {
-		// Spy on console to silence it in tests
 		consoleErrorSpy = jest
 			.spyOn(console, 'error')
 			.mockImplementation(() => {})
 		consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
 
 		jest.clearAllMocks()
-		// Reset connected state
 		;(redisService as any).isConnected = false
 	})
 
 	afterEach(() => {
-		// Restore console
 		consoleErrorSpy.mockRestore()
 		consoleLogSpy.mockRestore()
 	})
@@ -212,7 +203,6 @@ describe('RedisService', () => {
 
 			await redisService.clearUploadData(uploadId)
 
-			// Should delete each chunk
 			expect(internalClient.del).toHaveBeenCalledWith(
 				`upload:${uploadId}:chunk:1`
 			)
@@ -223,7 +213,6 @@ describe('RedisService', () => {
 				`upload:${uploadId}:chunk:3`
 			)
 
-			// Should delete metadata keys
 			expect(internalClient.del).toHaveBeenCalledWith(
 				`upload:${uploadId}:chunks`
 			)
@@ -241,10 +230,8 @@ describe('RedisService', () => {
 
 			internalClient.sMembers.mockRejectedValueOnce(mockError)
 
-			// Should not throw
 			await redisService.clearUploadData(uploadId)
 
-			// Should still attempt to get chunks
 			expect(internalClient.sMembers).toHaveBeenCalledWith(
 				`upload:${uploadId}:chunks`
 			)

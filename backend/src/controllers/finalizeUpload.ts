@@ -3,7 +3,10 @@ import fs from 'fs'
 import path from 'path'
 import { UPLOAD_DIR } from '../constants'
 
-function getAndSortChunkFiles(tempDir: string, totalChunks: number): string[] {
+export function getAndSortChunkFiles(
+	tempDir: string,
+	totalChunks: number
+): string[] {
 	const chunkFiles = []
 
 	for (let i = 1; i <= totalChunks; i++) {
@@ -21,7 +24,7 @@ function getAndSortChunkFiles(tempDir: string, totalChunks: number): string[] {
 	})
 }
 
-async function streamChunk(
+export async function streamChunk(
 	chunkFilePath: string,
 	writeStream: fs.WriteStream
 ): Promise<void> {
@@ -35,7 +38,7 @@ async function streamChunk(
 	})
 }
 
-async function combineChunksIntoSingleFile(
+export async function combineChunksIntoSingleFile(
 	chunkFiles: string[],
 	finalFilePath: string
 ): Promise<void> {
@@ -53,7 +56,7 @@ async function combineChunksIntoSingleFile(
 	})
 }
 
-async function validateFileType(
+export async function validateFileType(
 	filePath: string,
 	expectedMimeType: string
 ): Promise<void> {
@@ -73,7 +76,7 @@ async function validateFileType(
 	}
 }
 
-function cleanupChunks(chunkFiles: string[]): void {
+export function cleanupChunks(chunkFiles: string[]): void {
 	chunkFiles.forEach(chunkFilePath => {
 		fs.unlinkSync(chunkFilePath)
 	})
@@ -81,16 +84,19 @@ function cleanupChunks(chunkFiles: string[]): void {
 
 export const reassembleFile = async (
 	uploadId: string,
-	totalChunks: number,
 	fileName: string,
-	expectedMimeType?: string
-): Promise<string> => {
+	userId: string
+): Promise<{ success: boolean; filePath: string; message?: string }> => {
 	const tempDir = path.join(UPLOAD_DIR, uploadId)
 	const finalDir = path.join(UPLOAD_DIR, 'final')
 	const finalFilePath = path.join(finalDir, fileName)
 
 	if (!fs.existsSync(tempDir)) {
-		throw new Error(`Upload directory does not exist: ${tempDir}`)
+		return {
+			success: false,
+			filePath: '',
+			message: `Upload directory does not exist: ${tempDir}`,
+		}
 	}
 
 	if (!fs.existsSync(finalDir)) {
@@ -98,21 +104,50 @@ export const reassembleFile = async (
 	}
 
 	try {
-		const chunkFiles = getAndSortChunkFiles(tempDir, totalChunks)
+		const chunkFiles = fs
+			.readdirSync(tempDir)
+			.filter(file => file.startsWith('chunk_'))
+			.map(file => path.join(tempDir, file))
+			.sort((a, b) => {
+				const chunkA = parseInt(path.basename(a).split('_')[1], 10)
+				const chunkB = parseInt(path.basename(b).split('_')[1], 10)
+				return chunkA - chunkB
+			})
 
-		await combineChunksIntoSingleFile(chunkFiles, finalFilePath)
-
-		if (expectedMimeType) {
-			await validateFileType(finalFilePath, expectedMimeType)
+		if (chunkFiles.length === 0) {
+			return {
+				success: false,
+				filePath: '',
+				message: 'No chunks found for this upload',
+			}
 		}
 
-		cleanupChunks(chunkFiles)
+		const writeStream = fs.createWriteStream(finalFilePath)
 
-		return finalFilePath
+		for (const chunkFilePath of chunkFiles) {
+			await streamChunk(chunkFilePath, writeStream)
+		}
+
+		writeStream.end()
+
+		await new Promise<void>((resolve, reject) => {
+			writeStream.on('finish', resolve)
+			writeStream.on('error', reject)
+		})
+
+		return {
+			success: true,
+			filePath: finalFilePath,
+		}
 	} catch (error) {
 		if (fs.existsSync(finalFilePath)) {
 			fs.unlinkSync(finalFilePath)
 		}
-		throw error
+
+		return {
+			success: false,
+			filePath: '',
+			message: error instanceof Error ? error.message : 'Unknown error',
+		}
 	}
 }

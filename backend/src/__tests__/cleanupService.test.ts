@@ -11,7 +11,6 @@ jest.mock('../models/FileChecksum', () => ({
 	cleanupOldChecksums: jest.fn().mockResolvedValue(3),
 }))
 
-// Mock Redis service
 jest.mock('../services/redisService', () => ({
 	connect: jest.fn().mockResolvedValue(undefined),
 	disconnect: jest.fn().mockResolvedValue(undefined),
@@ -34,7 +33,6 @@ describe('CleanupService', () => {
 	}
 
 	beforeEach(() => {
-		// Spy on console to silence it in tests
 		consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
 		consoleErrorSpy = jest
 			.spyOn(console, 'error')
@@ -65,7 +63,6 @@ describe('CleanupService', () => {
 	})
 
 	afterEach(() => {
-		// Restore console
 		consoleLogSpy.mockRestore()
 		consoleErrorSpy.mockRestore()
 	})

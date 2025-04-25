@@ -4,7 +4,7 @@ import fs from 'fs-extra'
 import multer from 'multer'
 import os from 'os'
 import path from 'path'
-import { UPLOAD_DIR, getUserStoragePath } from '../constants'
+import { UPLOAD_DIR } from '../constants'
 import { reassembleFile } from '../controllers/finalizeUpload'
 import { findFileByChecksum, storeFileChecksum } from '../models/FileChecksum'
 import redisService from '../services/redisService'
@@ -18,18 +18,19 @@ let metrics = {
 	failedUploads: 0,
 }
 
-router.get('/metrics', (req: Request, res: Response) => {
+export const getMetricsHandler = (req: Request, res: Response) => {
 	res.json({
 		...metrics,
-		cpuLoad: os.loadavg(), // [1min, 5min, 15min]
+		cpuLoad: os.loadavg(),
 		memory: {
 			free: os.freemem(),
 			total: os.totalmem(),
 		},
 	})
-})
+}
 
-// Export handler function for testing
+router.get('/metrics', getMetricsHandler)
+
 export const initiateUploadHandler = async (req: Request, res: Response) => {
 	const { fileName, fileSize, mimeType, userId } = req.body
 
@@ -78,12 +79,10 @@ export const initiateUploadHandler = async (req: Request, res: Response) => {
 	}
 }
 
-// Register the route
 router.post('/initiate-upload', function (req: Request, res: Response) {
 	initiateUploadHandler(req, res)
 } as RequestHandler)
 
-// Export handler function for testing
 export const uploadStatusHandler = async (req: Request, res: Response) => {
 	const { uploadId } = req.params
 
@@ -165,196 +164,190 @@ export const uploadStatusHandler = async (req: Request, res: Response) => {
 	}
 }
 
-// Register the route
 router.get('/upload-status/:uploadId', function (req: Request, res: Response) {
 	uploadStatusHandler(req, res)
 } as RequestHandler)
 
-router.post(
-	'/upload-chunk',
-	upload.single('chunk'),
-	async (req: Request, res: Response) => {
-		const { uploadId, chunkIndex } = req.body
-		if (!uploadId || chunkIndex === undefined) {
+export const uploadChunkHandler = async (req: Request, res: Response) => {
+	const { uploadId, chunkIndex } = req.body
+	if (!uploadId || chunkIndex === undefined) {
+		res.status(400).json({
+			success: false,
+			message: 'Missing uploadId or chunkIndex',
+		})
+		return
+	}
+
+	try {
+		await redisService.connect()
+
+		const uploadDir = path.join(UPLOAD_DIR, uploadId)
+		await fs.ensureDir(uploadDir)
+
+		if (!req.file) {
 			res.status(400).json({
 				success: false,
-				message: 'Missing uploadId or chunkIndex',
+				message: 'No chunk file received',
 			})
 			return
 		}
 
-		try {
-			await redisService.connect()
-
-			const uploadDir = path.join(UPLOAD_DIR, uploadId)
-			await fs.ensureDir(uploadDir)
-
-			if (!req.file) {
-				res.status(400).json({
-					success: false,
-					message: 'No chunk file received',
-				})
-				return
-			}
-
-			const destPath = path.join(uploadDir, `chunk_${chunkIndex}`)
-			if (await fs.pathExists(destPath)) {
-				await fs.remove(destPath)
-			}
-			await fs.move(req.file.path, destPath)
-
-			await redisService.setChunkStatus(
-				uploadId,
-				parseInt(chunkIndex, 10),
-				'completed'
-			)
-			await redisService.updateChunksList(
-				uploadId,
-				parseInt(chunkIndex, 10)
-			)
-
-			const currentChunks = await redisService.getChunksList(uploadId)
-			await redisService.updateChunksReceived(
-				uploadId,
-				currentChunks.length
-			)
-
-			let metadata = await redisService.getUploadMetadata(uploadId)
-			if (metadata) {
-				if (metadata.chunks) {
-					metadata.chunks.received = currentChunks.length
-					await redisService.storeUploadMetadata(uploadId, metadata)
-				}
-			}
-
-			const metadataPath = path.join(uploadDir, 'metadata.json')
-			if (await fs.pathExists(metadataPath)) {
-				try {
-					const fsMetadata = await fs.readJSON(metadataPath)
-					if (fsMetadata.chunks) {
-						fsMetadata.chunks.received = currentChunks.length
-						await fs.writeJSON(metadataPath, fsMetadata)
-					}
-				} catch (error) {
-					console.error('Error updating metadata:', error)
-				}
-			}
-
-			res.json({
-				success: true,
-				message: `Chunk ${chunkIndex} received.`,
-			})
-		} catch (error) {
-			console.error('Error uploading chunk:', error)
-			res.status(500).json({
-				success: false,
-				message: 'Server error while processing chunk',
-			})
+		const destPath = path.join(uploadDir, `chunk_${chunkIndex}`)
+		if (await fs.pathExists(destPath)) {
+			await fs.remove(destPath)
 		}
-	}
-)
+		await fs.move(req.file.path, destPath)
 
-// Replace the finalize-upload route with properly typed handler
-router.post('/finalize-upload', function (req: Request, res: Response) {
-	const { uploadId, totalChunks, fileName, mimeType, userId } = req.body
-	if (!uploadId || !totalChunks || !fileName) {
-		res.status(400).json({
-			success: false,
-			message: 'Missing uploadId, totalChunks, or fileName',
-		})
-		return
-	}
-	metrics.activeUploads++
+		await redisService.setChunkStatus(
+			uploadId,
+			parseInt(chunkIndex, 10),
+			'completed'
+		)
+		await redisService.updateChunksList(uploadId, parseInt(chunkIndex, 10))
 
-	const uploadDir = path.join(UPLOAD_DIR, uploadId)
+		const currentChunks = await redisService.getChunksList(uploadId)
+		await redisService.updateChunksReceived(uploadId, currentChunks.length)
 
-	const updateMetadataWithTotalChunks = async () => {
+		let metadata = await redisService.getUploadMetadata(uploadId)
+		if (metadata) {
+			if (metadata.chunks) {
+				metadata.chunks.received = currentChunks.length
+				await redisService.storeUploadMetadata(uploadId, metadata)
+			}
+		}
+
 		const metadataPath = path.join(uploadDir, 'metadata.json')
 		if (await fs.pathExists(metadataPath)) {
 			try {
-				const metadata = await fs.readJSON(metadataPath)
-				if (metadata.chunks) {
-					metadata.chunks.total = parseInt(totalChunks, 10)
-					await fs.writeJSON(metadataPath, metadata)
+				const fsMetadata = await fs.readJSON(metadataPath)
+				if (fsMetadata.chunks) {
+					fsMetadata.chunks.received = currentChunks.length
+					await fs.writeJSON(metadataPath, fsMetadata)
 				}
 			} catch (error) {
 				console.error('Error updating metadata:', error)
 			}
 		}
+
+		res.json({
+			success: true,
+			message: `Chunk ${chunkIndex} received.`,
+		})
+	} catch (error) {
+		console.error('Error uploading chunk:', error)
+		res.status(500).json({
+			success: false,
+			message: error instanceof Error ? error.message : 'Unknown error',
+		})
+	}
+}
+
+router.post('/upload-chunk', upload.single('chunk'), uploadChunkHandler)
+
+export const finalizeUploadHandler = async (req: Request, res: Response) => {
+	const { uploadId, fileName, userId, checksum } = req.body
+
+	if (!uploadId) {
+		return res.status(400).json({
+			success: false,
+			message: 'Missing uploadId',
+		})
 	}
 
-	fs.ensureDir(uploadDir).then(() => {
-		updateMetadataWithTotalChunks()
+	try {
+		await redisService.connect()
+		const metadata = await redisService.getUploadMetadata(uploadId)
 
-		return reassembleFile(uploadId, totalChunks, fileName, mimeType)
-			.then(finalFilePath => {
-				return fs.readFile(finalFilePath).then(buffer => {
-					const md5 = crypto
-						.createHash('md5')
-						.update(buffer)
-						.digest('hex')
-					return findFileByChecksum(md5, userId || 'anonymous').then(
-						existing => {
-							if (existing) {
-								return Promise.all([
-									fs.remove(finalFilePath),
-									fs.remove(uploadDir),
-									redisService.clearUploadData(uploadId),
-								]).then(() => {
-									return res.json({
-										success: true,
-										message: 'File already exists',
-										filePath: existing,
-										isDuplicate: true,
-									})
-								})
-							}
-
-							const userPath = getUserStoragePath(
-								userId || 'anonymous'
-							)
-							return fs.ensureDir(userPath).then(() => {
-								const ext = path.extname(fileName)
-								const base = path.basename(fileName, ext)
-								const unique = `${base}_${md5}${ext}`
-								const dest = path.join(userPath, unique)
-
-								return fs.move(finalFilePath, dest).then(() => {
-									return Promise.all([
-										storeFileChecksum(
-											md5,
-											dest,
-											userId || 'anonymous'
-										),
-										fs.remove(uploadDir),
-									]).then(() => {
-										metrics.successfulUploads++
-										return res.json({
-											success: true,
-											message:
-												'Upload finalized successfully.',
-											filePath: dest,
-											checksum: md5,
-										})
-									})
-								})
-							})
-						}
-					)
+		if (checksum) {
+			const existingFile = await findFileByChecksum(
+				checksum,
+				userId || metadata?.userId
+			)
+			if (existingFile) {
+				return res.json({
+					success: true,
+					filePath: existingFile,
+					isDuplicate: true,
 				})
-			})
-			.catch(err => {
-				metrics.failedUploads++
-				return res.status(500).json({
-					success: false,
-					message:
-						err instanceof Error ? err.message : 'Unknown error',
-				})
-			})
-			.finally(() => {
-				metrics.activeUploads--
-			})
-	})
+			}
+		}
+
+		const result = await reassembleFile(
+			uploadId,
+			fileName || metadata?.fileName || '',
+			userId || metadata?.userId || 'anonymous'
+		)
+
+		if (
+			result &&
+			typeof result === 'object' &&
+			result.success &&
+			checksum
+		) {
+			await storeFileChecksum(
+				checksum,
+				result.filePath,
+				userId || metadata?.userId || 'anonymous'
+			)
+		}
+
+		metrics.successfulUploads += 1
+		metrics.activeUploads = Math.max(0, metrics.activeUploads - 1)
+
+		return res.json(result)
+	} catch (err) {
+		metrics.failedUploads += 1
+		metrics.activeUploads = Math.max(0, metrics.activeUploads - 1)
+
+		console.error('Error in finalize-upload:', err)
+		return res.status(500).json({
+			success: false,
+			message: err instanceof Error ? err.message : 'Unknown error',
+		})
+	}
+}
+
+router.post('/finalize-upload', function (req: Request, res: Response) {
+	finalizeUploadHandler(req, res)
+} as RequestHandler)
+
+export const deleteUploadHandler = async (req: Request, res: Response) => {
+	const { uploadId } = req.params
+
+	if (!uploadId) {
+		return res.status(400).json({
+			success: false,
+			message: 'Missing uploadId',
+		})
+	}
+
+	try {
+		await redisService.connect()
+		await redisService.clearUploadData(uploadId)
+
+		const uploadDir = path.join(UPLOAD_DIR, uploadId)
+		if (await fs.pathExists(uploadDir)) {
+			await fs.remove(uploadDir)
+		}
+
+		return res.json({
+			success: true,
+			message: 'Upload deleted successfully',
+		})
+	} catch (err) {
+		console.error('Error deleting upload:', err)
+		return res.status(500).json({
+			success: false,
+			message: err instanceof Error ? err.message : 'Unknown error',
+		})
+	}
+}
+
+router.delete('/delete-upload/:uploadId', function (
+	req: Request,
+	res: Response
+) {
+	deleteUploadHandler(req, res)
 } as RequestHandler)
 
 export default router
