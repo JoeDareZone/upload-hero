@@ -3,6 +3,7 @@ import { API_BASE_URL, IS_WEB } from '@/utils/constants'
 import { getUserFriendlyErrorMessage } from '@/utils/helpers'
 import axios from 'axios'
 import * as BackgroundFetch from 'expo-background-fetch'
+import * as FileSystem from 'expo-file-system'
 import * as TaskManager from 'expo-task-manager'
 
 export const initiateUpload = async (file: UploadFile): Promise<string> => {
@@ -96,21 +97,79 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 				formData.append('chunk', blob)
 			}
 		} else {
-			formData.append('chunk', {
-				uri: chunk.uri,
-				type: 'application/octet-stream',
-				name: `chunk_${chunk.chunkIndex}`,
-			} as any)
+			try {
+				const tempDir = `${FileSystem.cacheDirectory}upload-chunks/`
+				const tempChunkPath = `${tempDir}chunk_${chunk.fileId}_${chunk.chunkIndex}`
+
+				await FileSystem.makeDirectoryAsync(tempDir, {
+					intermediates: true,
+				}).catch(() => {})
+
+				if (chunk.uri.startsWith('file://')) {
+					const info = await FileSystem.getInfoAsync(chunk.uri)
+					if (!info.exists) {
+						throw new Error(
+							`Source file doesn't exist: ${chunk.uri}`
+						)
+					}
+
+					const length = chunk.end - chunk.start
+					console.log(
+						`Reading ${length} bytes from ${chunk.uri} at position ${chunk.start}`
+					)
+
+					const options = {
+						encoding: FileSystem.EncodingType.Base64,
+						position: chunk.start,
+						length: length,
+					}
+
+					const base64Data = await FileSystem.readAsStringAsync(
+						chunk.uri,
+						options
+					)
+					await FileSystem.writeAsStringAsync(
+						tempChunkPath,
+						base64Data,
+						{
+							encoding: FileSystem.EncodingType.Base64,
+						}
+					)
+
+					formData.append('chunk', {
+						uri: tempChunkPath,
+						type: 'application/octet-stream',
+						name: `chunk_${chunk.chunkIndex}`,
+					} as any)
+				} else {
+					formData.append('chunkStart', chunk.start.toString())
+					formData.append('chunkEnd', chunk.end.toString())
+					formData.append('chunk', {
+						uri: chunk.uri,
+						type: 'application/octet-stream',
+						name: `chunk_${chunk.chunkIndex}`,
+					} as any)
+				}
+			} catch (err: any) {
+				console.error('Error processing mobile chunk:', err)
+				throw new Error(
+					`Failed to process chunk ${chunk.chunkIndex}: ${err.message}`
+				)
+			}
 		}
 
 		formData.append('uploadId', chunk.fileId)
 		formData.append('chunkIndex', chunk.chunkIndex.toString())
 
-		await axios.post(`${API_BASE_URL}/upload-chunk`, formData, {
-			headers: {
-				'Content-Type': 'multipart/form-data',
-			},
-		})
+		const response = await axios.post(
+			`${API_BASE_URL}/upload-chunk`,
+			formData,
+			{
+				headers: {
+					'Content-Type': 'multipart/form-data',
+				},
+			}
+		)
 
 		if (!IS_WEB) {
 			const status = await BackgroundFetch.getStatusAsync()
