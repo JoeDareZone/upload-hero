@@ -75,7 +75,7 @@ export default function HomeScreen() {
 			const res = await fetch(`${API_BASE_URL}/metrics`)
 			const data = await res.json()
 			setMetrics(data)
-		}, 3000)
+		}, 1000)
 
 		return () => clearInterval(interval)
 	}, [])
