@@ -11,7 +11,18 @@ jest.mock('../models/FileChecksum', () => ({
 	cleanupOldChecksums: jest.fn().mockResolvedValue(3),
 }))
 
+// Mock Redis service
+jest.mock('../services/redisService', () => ({
+	connect: jest.fn().mockResolvedValue(undefined),
+	disconnect: jest.fn().mockResolvedValue(undefined),
+	clearUploadData: jest.fn().mockResolvedValue(undefined),
+	getChunksList: jest.fn().mockResolvedValue([]),
+}))
+
 describe('CleanupService', () => {
+	let consoleLogSpy: jest.SpyInstance
+	let consoleErrorSpy: jest.SpyInstance
+
 	const mockFiles = ['final', 'upload1', 'upload2', 'upload3']
 	const mockStats = {
 		isDirectory: jest.fn().mockReturnValue(true),
@@ -23,8 +34,13 @@ describe('CleanupService', () => {
 	}
 
 	beforeEach(() => {
-		jest.clearAllMocks()
+		// Spy on console to silence it in tests
+		consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+		consoleErrorSpy = jest
+			.spyOn(console, 'error')
+			.mockImplementation(() => {})
 
+		jest.clearAllMocks()
 		;(fs.existsSync as jest.Mock).mockReturnValue(true)
 		;(fs.readdirSync as jest.Mock).mockReturnValue(mockFiles)
 		;(fs.statSync as jest.Mock).mockImplementation(filePath => {
@@ -46,6 +62,12 @@ describe('CleanupService', () => {
 				return { cancel: jest.fn() }
 			}
 		)
+	})
+
+	afterEach(() => {
+		// Restore console
+		consoleLogSpy.mockRestore()
+		consoleErrorSpy.mockRestore()
 	})
 
 	test('should start and schedule cleanup job', () => {

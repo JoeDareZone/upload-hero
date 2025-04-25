@@ -45,35 +45,51 @@ class CleanupService {
 		const now = Date.now()
 		const files = fs.readdirSync(UPLOAD_DIR)
 		let removedCount = 0
+		let redisConnected = false
 
-		for (const file of files) {
-			if (file === 'final') {
-				continue
-			}
+		try {
+			// Connect to Redis at the beginning of the operation
+			await redisService.connect()
+			redisConnected = true
 
-			const filePath = path.join(UPLOAD_DIR, file)
-
-			try {
-				const stats = fs.statSync(filePath)
-
-				if (
-					stats.isDirectory() &&
-					now - stats.mtimeMs > FILE_RETENTION_PERIOD
-				) {
-					try {
-						await redisService.clearUploadData(file)
-					} catch (redisError) {
-						console.error(
-							`Error cleaning Redis data for ${file}:`,
-							redisError
-						)
-					}
-
-					fs.rmSync(filePath, { recursive: true, force: true })
-					removedCount++
+			for (const file of files) {
+				if (file === 'final') {
+					continue
 				}
-			} catch (err) {
-				console.error(`Error processing ${filePath}:`, err)
+
+				const filePath = path.join(UPLOAD_DIR, file)
+
+				try {
+					const stats = fs.statSync(filePath)
+
+					if (
+						stats.isDirectory() &&
+						now - stats.mtimeMs > FILE_RETENTION_PERIOD
+					) {
+						try {
+							await redisService.clearUploadData(file)
+						} catch (redisError) {
+							console.error(
+								`Error cleaning Redis data for ${file}:`,
+								redisError
+							)
+						}
+
+						fs.rmSync(filePath, { recursive: true, force: true })
+						removedCount++
+					}
+				} catch (err) {
+					console.error(`Error processing ${filePath}:`, err)
+				}
+			}
+		} finally {
+			// Ensure Redis is disconnected at the end, regardless of success or failure
+			if (redisConnected) {
+				try {
+					await redisService.disconnect()
+				} catch (error) {
+					console.error('Error disconnecting from Redis:', error)
+				}
 			}
 		}
 

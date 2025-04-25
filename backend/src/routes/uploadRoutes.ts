@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { Request, Response, Router } from 'express'
+import { Request, RequestHandler, Response, Router } from 'express'
 import fs from 'fs-extra'
 import multer from 'multer'
 import os from 'os'
@@ -29,8 +29,8 @@ router.get('/metrics', (req: Request, res: Response) => {
 	})
 })
 
-// @ts-ignore
-router.post('/initiate-upload', async (req: Request, res: Response) => {
+// Export handler function for testing
+export const initiateUploadHandler = async (req: Request, res: Response) => {
 	const { fileName, fileSize, mimeType, userId } = req.body
 
 	if (!fileName || !fileSize) {
@@ -76,10 +76,15 @@ router.post('/initiate-upload', async (req: Request, res: Response) => {
 			message: err instanceof Error ? err.message : 'Unknown error',
 		})
 	}
-})
+}
 
-// @ts-ignore
-router.get('/upload-status/:uploadId', async (req: Request, res: Response) => {
+// Register the route
+router.post('/initiate-upload', function (req: Request, res: Response) {
+	initiateUploadHandler(req, res)
+} as RequestHandler)
+
+// Export handler function for testing
+export const uploadStatusHandler = async (req: Request, res: Response) => {
 	const { uploadId } = req.params
 
 	if (!uploadId) {
@@ -158,7 +163,12 @@ router.get('/upload-status/:uploadId', async (req: Request, res: Response) => {
 			message: err instanceof Error ? err.message : 'Unknown error',
 		})
 	}
-})
+}
+
+// Register the route
+router.get('/upload-status/:uploadId', function (req: Request, res: Response) {
+	uploadStatusHandler(req, res)
+} as RequestHandler)
 
 router.post(
 	'/upload-chunk',
@@ -244,8 +254,8 @@ router.post(
 	}
 )
 
-// @ts-ignore
-router.post('/finalize-upload', async (req: Request, res: Response) => {
+// Replace the finalize-upload route with properly typed handler
+router.post('/finalize-upload', function (req: Request, res: Response) {
 	const { uploadId, totalChunks, fileName, mimeType, userId } = req.body
 	if (!uploadId || !totalChunks || !fileName) {
 		res.status(400).json({
@@ -257,7 +267,6 @@ router.post('/finalize-upload', async (req: Request, res: Response) => {
 	metrics.activeUploads++
 
 	const uploadDir = path.join(UPLOAD_DIR, uploadId)
-	await fs.ensureDir(uploadDir)
 
 	const updateMetadataWithTotalChunks = async () => {
 		const metadataPath = path.join(uploadDir, 'metadata.json')
@@ -274,63 +283,78 @@ router.post('/finalize-upload', async (req: Request, res: Response) => {
 		}
 	}
 
-	updateMetadataWithTotalChunks()
+	fs.ensureDir(uploadDir).then(() => {
+		updateMetadataWithTotalChunks()
 
-	try {
-		const finalFilePath = await reassembleFile(
-			uploadId,
-			totalChunks,
-			fileName,
-			mimeType
-		)
+		return reassembleFile(uploadId, totalChunks, fileName, mimeType)
+			.then(finalFilePath => {
+				return fs.readFile(finalFilePath).then(buffer => {
+					const md5 = crypto
+						.createHash('md5')
+						.update(buffer)
+						.digest('hex')
+					return findFileByChecksum(md5, userId || 'anonymous').then(
+						existing => {
+							if (existing) {
+								return Promise.all([
+									fs.remove(finalFilePath),
+									fs.remove(uploadDir),
+									redisService.clearUploadData(uploadId),
+								]).then(() => {
+									return res.json({
+										success: true,
+										message: 'File already exists',
+										filePath: existing,
+										isDuplicate: true,
+									})
+								})
+							}
 
-		const buffer = await fs.readFile(finalFilePath)
-		const md5 = crypto.createHash('md5').update(buffer).digest('hex')
+							const userPath = getUserStoragePath(
+								userId || 'anonymous'
+							)
+							return fs.ensureDir(userPath).then(() => {
+								const ext = path.extname(fileName)
+								const base = path.basename(fileName, ext)
+								const unique = `${base}_${md5}${ext}`
+								const dest = path.join(userPath, unique)
 
-		const existing = await findFileByChecksum(md5, userId || 'anonymous')
-
-		if (existing) {
-			await fs.remove(finalFilePath)
-			await fs.remove(uploadDir)
-
-			await redisService.clearUploadData(uploadId)
-
-			return res.json({
-				success: true,
-				message: 'File already exists',
-				filePath: existing,
-				isDuplicate: true,
+								return fs.move(finalFilePath, dest).then(() => {
+									return Promise.all([
+										storeFileChecksum(
+											md5,
+											dest,
+											userId || 'anonymous'
+										),
+										fs.remove(uploadDir),
+									]).then(() => {
+										metrics.successfulUploads++
+										return res.json({
+											success: true,
+											message:
+												'Upload finalized successfully.',
+											filePath: dest,
+											checksum: md5,
+										})
+									})
+								})
+							})
+						}
+					)
+				})
 			})
-		}
-
-		const userPath = getUserStoragePath(userId || 'anonymous')
-		await fs.ensureDir(userPath)
-
-		const ext = path.extname(fileName)
-		const base = path.basename(fileName, ext)
-		const unique = `${base}_${md5}${ext}`
-		const dest = path.join(userPath, unique)
-		await fs.move(finalFilePath, dest)
-
-		await storeFileChecksum(md5, dest, userId || 'anonymous')
-		await fs.remove(uploadDir)
-
-		metrics.successfulUploads++
-		return res.json({
-			success: true,
-			message: 'Upload finalized successfully.',
-			filePath: dest,
-			checksum: md5,
-		})
-	} catch (err) {
-		metrics.failedUploads++
-		return res.status(500).json({
-			success: false,
-			message: err instanceof Error ? err.message : 'Unknown error',
-		})
-	} finally {
-		metrics.activeUploads--
-	}
-})
+			.catch(err => {
+				metrics.failedUploads++
+				return res.status(500).json({
+					success: false,
+					message:
+						err instanceof Error ? err.message : 'Unknown error',
+				})
+			})
+			.finally(() => {
+				metrics.activeUploads--
+			})
+	})
+} as RequestHandler)
 
 export default router

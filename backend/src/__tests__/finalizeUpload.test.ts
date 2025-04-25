@@ -13,6 +13,7 @@ describe('finalizeUpload Controller', () => {
 	const mockExpectedMimeType = 'image/jpeg'
 	const mockTempDir = '/mocked/path/uploads/test-upload-id'
 	const mockFinalPath = '/mocked/path/uploads/final/test-file.jpg'
+	const mockFinalDir = '/mocked/path/uploads/final'
 
 	beforeEach(() => {
 		jest.clearAllMocks()
@@ -20,7 +21,7 @@ describe('finalizeUpload Controller', () => {
 			if (args.includes('final') && args.includes(mockFileName)) {
 				return mockFinalPath
 			} else if (args.includes('final')) {
-				return '/mocked/path/uploads/final'
+				return mockFinalDir
 			} else if (args.includes(mockUploadId)) {
 				return mockTempDir
 			}
@@ -121,6 +122,101 @@ describe('finalizeUpload Controller', () => {
 				mockExpectedMimeType
 			)
 		).rejects.toThrow('File type validation failed')
+
+		expect(fs.unlinkSync).toHaveBeenCalledWith(mockFinalPath)
+	})
+
+	test('should create final directory if it does not exist', async () => {
+		// Mock final directory to not exist
+		;(fs.existsSync as jest.Mock).mockImplementation(path => {
+			if (path === mockFinalDir) return false
+			return true
+		})
+
+		const fileTypeModule = require('file-type')
+		fileTypeModule.fromBuffer.mockResolvedValue({
+			mime: mockExpectedMimeType,
+		})
+
+		await reassembleFile(
+			mockUploadId,
+			mockTotalChunks,
+			mockFileName,
+			mockExpectedMimeType
+		)
+
+		expect(fs.mkdirSync).toHaveBeenCalledWith(mockFinalDir, {
+			recursive: true,
+		})
+	})
+
+	test('should handle missing chunk files', async () => {
+		// Mock a missing chunk file
+		;(fs.existsSync as jest.Mock).mockImplementation(path => {
+			if (path.includes('chunk_2')) return false
+			return true
+		})
+
+		await expect(
+			reassembleFile(mockUploadId, mockTotalChunks, mockFileName)
+		).rejects.toThrow('Missing chunk 2')
+
+		// Should attempt to clean up the final file
+		expect(fs.unlinkSync).toHaveBeenCalledWith(mockFinalPath)
+	})
+
+	test('should handle read stream errors', async () => {
+		const mockErrorMessage = 'Stream read error'
+		const mockReadStream = {
+			pipe: jest.fn(),
+			on: jest.fn().mockImplementation((event, callback) => {
+				if (event === 'error') callback(new Error(mockErrorMessage))
+				return mockReadStream
+			}),
+		}
+
+		;(fs.createReadStream as jest.Mock).mockReturnValue(mockReadStream)
+
+		await expect(
+			reassembleFile(mockUploadId, mockTotalChunks, mockFileName)
+		).rejects.toThrow(mockErrorMessage)
+
+		expect(fs.unlinkSync).toHaveBeenCalledWith(mockFinalPath)
+	})
+
+	test('should handle write stream errors', async () => {
+		const mockErrorMessage = 'Stream write error'
+		const mockWriteStream = {
+			on: jest.fn().mockImplementation((event, callback) => {
+				if (event === 'error') callback(new Error(mockErrorMessage))
+				return mockWriteStream
+			}),
+			end: jest.fn(),
+		}
+
+		;(fs.createWriteStream as jest.Mock).mockReturnValue(mockWriteStream)
+
+		await expect(
+			reassembleFile(mockUploadId, mockTotalChunks, mockFileName)
+		).rejects.toThrow()
+
+		expect(fs.unlinkSync).toHaveBeenCalledWith(mockFinalPath)
+	})
+
+	test('should handle case when fileType detection returns null', async () => {
+		const fileTypeModule = require('file-type')
+		fileTypeModule.fromBuffer.mockResolvedValue(null)
+
+		await expect(
+			reassembleFile(
+				mockUploadId,
+				mockTotalChunks,
+				mockFileName,
+				mockExpectedMimeType
+			)
+		).rejects.toThrow(
+			'File type validation failed: unable to detect file type'
+		)
 
 		expect(fs.unlinkSync).toHaveBeenCalledWith(mockFinalPath)
 	})

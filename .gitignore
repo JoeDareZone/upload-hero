@@ -54,3 +54,6 @@ backend/uploads/
 
 ios/
 android/
+
+# Coverage
+coverage/
