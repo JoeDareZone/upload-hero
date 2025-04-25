@@ -1,5 +1,6 @@
+import { IS_WEB } from '@/utils/constants'
 import React from 'react'
-import { Platform, Text, TouchableOpacity, View } from 'react-native'
+import { Text, TouchableOpacity, View } from 'react-native'
 
 interface ClearAllButtonProps {
 	isUploading: boolean
@@ -10,14 +11,12 @@ export const ClearAllButton = ({
 	isUploading,
 	onClearAll,
 }: ClearAllButtonProps) => {
-	const isWeb = Platform.OS === 'web'
-
 	return (
 		<View className='flex-row justify-end mb-2'>
 			<TouchableOpacity
 				onPress={onClearAll}
 				className={`bg-red-600 px-3 py-1.5 rounded-lg ${
-					isWeb ? 'hover-highlight web-clickable' : ''
+					IS_WEB ? 'hover-highlight web-clickable' : ''
 				}`}
 				disabled={isUploading}
 				style={{

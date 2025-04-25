@@ -1,10 +1,9 @@
 import { UploadChunk, UploadFile } from '@/types/fileType'
-import { API_BASE_URL } from '@/utils/constants'
+import { API_BASE_URL, IS_WEB } from '@/utils/constants'
 import { getUserFriendlyErrorMessage } from '@/utils/helpers'
 import axios from 'axios'
 import * as BackgroundFetch from 'expo-background-fetch'
 import * as TaskManager from 'expo-task-manager'
-import { Platform } from 'react-native'
 
 export const initiateUpload = async (file: UploadFile): Promise<string> => {
 	try {
@@ -85,7 +84,7 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 	const formData = new FormData()
 
 	try {
-		if (Platform.OS === 'web') {
+		if (IS_WEB) {
 			if (chunk.file instanceof File) {
 				formData.append('chunk', chunk.file)
 			} else {
@@ -113,7 +112,7 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 			},
 		})
 
-		if (Platform.OS !== 'web') {
+		if (!IS_WEB) {
 			const status = await BackgroundFetch.getStatusAsync()
 			if (status === BackgroundFetch.BackgroundFetchStatus.Available) {
 				await registerBackgroundUploadTask()

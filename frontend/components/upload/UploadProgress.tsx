@@ -1,5 +1,6 @@
+import { IS_WEB } from '@/utils/constants'
 import React from 'react'
-import { Platform, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import * as Progress from 'react-native-progress'
 
 interface OverallProgressProps {
@@ -15,8 +16,6 @@ export const OverallProgress = ({
 	isAllFilesUploaded,
 	hasErrorFiles,
 }: OverallProgressProps) => {
-	const isWeb = Platform.OS === 'web'
-
 	if (totalChunks === 0) return null
 
 	return (
@@ -28,11 +27,11 @@ export const OverallProgress = ({
 						: 'All files uploaded successfully!'
 					: 'Overall Progress'}
 			</Text>
-			<View className={isWeb ? 'progress-bar-web' : ''}>
+			<View className={IS_WEB ? 'progress-bar-web' : ''}>
 				<Progress.Bar
 					progress={overallUploadProgress}
 					width={null}
-					height={isWeb ? 12 : 10}
+					height={IS_WEB ? 12 : 10}
 					color={
 						isAllFilesUploaded
 							? hasErrorFiles

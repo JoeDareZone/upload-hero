@@ -1,14 +1,13 @@
 import { UploadFile } from '@/types/fileType'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Platform } from 'react-native'
+import { IS_WEB } from './constants'
 
 const UPLOAD_HISTORY_KEY = 'upload_history'
 const INCOMPLETE_UPLOADS_KEY = 'incomplete_uploads'
 
-const getStorage = () => (Platform.OS === 'web' ? localStorage : AsyncStorage)
+const getStorage = () => (IS_WEB ? localStorage : AsyncStorage)
 
-const isWebAndServerSide =
-	Platform.OS === 'web' && typeof window === 'undefined'
+const isWebAndServerSide = IS_WEB && typeof window === 'undefined'
 
 export const saveToUploadHistory = (file: UploadFile): void => {
 	if (isWebAndServerSide) return
@@ -88,10 +87,9 @@ export const saveIncompleteUploads = async (
 			['queued', 'uploading', 'paused', 'error'].includes(file.status)
 		)
 
-		const serializableFiles =
-			Platform.OS === 'web'
-				? incompleteFiles.map(({ file, ...rest }) => rest)
-				: incompleteFiles
+		const serializableFiles = IS_WEB
+			? incompleteFiles.map(({ file, ...rest }) => rest)
+			: incompleteFiles
 
 		const serialized = JSON.stringify(serializableFiles)
 

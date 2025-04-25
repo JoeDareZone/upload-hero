@@ -10,15 +10,9 @@ import { OverallProgress } from '@/components/upload/UploadProgress'
 import { calculateUploadStats, useFileSelection } from '@/hooks/uploadHooks'
 import { useUploadManager } from '@/hooks/useUploadManager'
 import { UploadFile } from '@/types/fileType'
-import { API_BASE_URL } from '@/utils/constants'
+import { API_BASE_URL, IS_WEB } from '@/utils/constants'
 import React, { useEffect, useState } from 'react'
-import {
-	Platform,
-	SafeAreaView,
-	Text,
-	TouchableOpacity,
-	View,
-} from 'react-native'
+import { SafeAreaView, Text, TouchableOpacity, View } from 'react-native'
 import '../web-styles.css'
 
 export default function HomeScreen() {
@@ -71,7 +65,6 @@ export default function HomeScreen() {
 		},
 	})
 	const allErrors = [...errors, ...dragDropErrors]
-	const isWeb = Platform.OS === 'web'
 
 	useEffect(() => {
 		loadIncompleteUploads(isAllFilesUploaded)
@@ -119,7 +112,7 @@ export default function HomeScreen() {
 
 	return (
 		<SafeAreaView className='flex-1 bg-gray-900'>
-			<View className={`flex-1 p-4 ${isWeb && 'web-container'}`}>
+			<View className={`flex-1 p-4 ${IS_WEB && 'web-container'}`}>
 				<View className='flex-row justify-between items-center mb-4 mt-4'>
 					<Text className='text-white text-xl font-bold'>
 						Upload Hero
@@ -135,7 +128,7 @@ export default function HomeScreen() {
 									: 'Test Tools'}
 							</Text>
 						</TouchableOpacity>
-						{isWeb && (
+						{IS_WEB && (
 							<TouchableOpacity
 								onPress={() => setIsHistoryVisible(true)}
 								className='px-3 py-1.5 bg-blue-600 rounded-lg hover-highlight web-clickable'

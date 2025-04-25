@@ -9,6 +9,7 @@ import { createChunks } from '@/utils/chunkUtils'
 import {
 	ARTIFICIAL_DELAY,
 	CHUNK_SIZE,
+	IS_WEB,
 	MAX_CONCURRENT_UPLOADS,
 } from '@/utils/constants'
 import {
@@ -18,7 +19,6 @@ import {
 	saveToUploadHistory,
 } from '@/utils/storageUtils'
 import { useEffect, useRef, useState } from 'react'
-import { Platform } from 'react-native'
 
 type FileUploadState = {
 	files: UploadFile[]
@@ -36,13 +36,13 @@ type FileUploadActions = {
 }
 
 export const useUploadManager = (): FileUploadState & FileUploadActions => {
-	const filesRef = useRef<UploadFile[]>([])
 	const [files, setFiles] = useState<UploadFile[]>([])
 	const [isUploading, setIsUploading] = useState(false)
 
 	const activeUploads = useRef(0)
 	const fileQueue = useRef<UploadFile[]>([])
 	const activeFileUploads = useRef<Record<string, boolean>>({})
+	const filesRef = useRef<UploadFile[]>([])
 	const initialized = useRef(false)
 
 	useEffect(() => {
@@ -56,13 +56,12 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 
 	useEffect(() => {
 		const saveCompletedFilesForWeb = () => {
-			if (Platform.OS === 'web') {
+			if (IS_WEB)
 				files.forEach(file => {
 					if (file.status === 'completed') {
 						saveToUploadHistory(file)
 					}
 				})
-			}
 		}
 
 		saveCompletedFilesForWeb()
@@ -177,9 +176,7 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 		if (isFilePaused()) return false
 
 		// Artificial delay for testing
-		if (ARTIFICIAL_DELAY) {
-			await new Promise(res => setTimeout(res, 200))
-		}
+		if (ARTIFICIAL_DELAY) await new Promise(res => setTimeout(res, 200))
 
 		if (isFilePaused()) return false
 

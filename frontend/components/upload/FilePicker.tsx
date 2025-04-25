@@ -1,6 +1,6 @@
 import { UploadFile } from '@/types/fileType'
-import { Platform } from 'react-native'
 
+import { IS_WEB } from '@/utils/constants'
 import NativePicker from './FilePicker.native'
 import WebPicker from './FilePicker.web'
 
@@ -14,9 +14,5 @@ export interface FilePickerProps {
 }
 
 export default function FilePicker(props: FilePickerProps) {
-	return Platform.OS === 'web' ? (
-		<WebPicker {...props} />
-	) : (
-		<NativePicker {...props} />
-	)
+	return IS_WEB ? <WebPicker {...props} /> : <NativePicker {...props} />
 }

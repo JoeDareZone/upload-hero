@@ -1,10 +1,11 @@
 import { IconSymbol } from '@/components/ui/IconSymbol'
 import { UploadFile } from '@/types/fileType'
+import { IS_WEB } from '@/utils/constants'
 import {
 	convertBytesToMB,
 	convertUploadedChunksToPercentage,
 } from '@/utils/helpers'
-import { Image, Platform, Text, TouchableOpacity, View } from 'react-native'
+import { Image, Text, TouchableOpacity, View } from 'react-native'
 import * as Progress from 'react-native-progress'
 
 type FileItemProps = {
@@ -20,7 +21,6 @@ export const FileItem = ({
 	resumeUpload,
 	cancelUpload,
 }: FileItemProps) => {
-	const isWeb = Platform.OS === 'web'
 	const {
 		id,
 		uri,
@@ -63,8 +63,8 @@ export const FileItem = ({
 		return (
 			<TouchableOpacity
 				onPress={() => cancelUpload(id)}
-				className={isWeb ? 'hover-highlight' : ''}
-				style={{ cursor: isWeb ? 'pointer' : undefined }}
+				className={IS_WEB ? 'hover-highlight' : ''}
+				style={{ cursor: IS_WEB ? 'pointer' : undefined }}
 			>
 				<IconSymbol name='trash' size={20} color='red' />
 			</TouchableOpacity>
@@ -97,7 +97,7 @@ export const FileItem = ({
 	return (
 		<View
 			className={`bg-white/10 p-4 rounded-xl shadow-md flex-row gap-x-6 items-center ${
-				isWeb ? 'file-item-web' : ''
+				IS_WEB ? 'file-item-web' : ''
 			}`}
 		>
 			{uri && (
@@ -123,9 +123,9 @@ export const FileItem = ({
 										? pauseUpload(id)
 										: resumeUpload(id)
 								}
-								className={isWeb ? 'hover-highlight' : ''}
+								className={IS_WEB ? 'hover-highlight' : ''}
 								style={{
-									cursor: isWeb ? 'pointer' : undefined,
+									cursor: IS_WEB ? 'pointer' : undefined,
 								}}
 							>
 								<IconSymbol
@@ -143,11 +143,11 @@ export const FileItem = ({
 					</View>
 				</View>
 
-				<View className={isWeb ? 'progress-bar-web' : ''}>
+				<View className={IS_WEB ? 'progress-bar-web' : ''}>
 					<Progress.Bar
 						progress={uploadedChunks / totalChunks}
 						width={null}
-						height={isWeb ? 10 : 8}
+						height={IS_WEB ? 10 : 8}
 						color={getProgressColor()}
 						borderWidth={0}
 						style={{ marginBottom: 16 }}

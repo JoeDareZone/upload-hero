@@ -8,3 +8,5 @@ export const CHUNK_SIZE = 1024 * 1024 // 1MB
 export const ARTIFICIAL_DELAY = true
 export const API_BASE_URL =
 	Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000'
+export const IS_WEB = Platform.OS === 'web'
+

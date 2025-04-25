@@ -1,13 +1,6 @@
-import { API_BASE_URL } from '@/utils/constants'
+import { API_BASE_URL, IS_WEB } from '@/utils/constants'
 import React from 'react'
-import {
-	Alert,
-	Platform,
-	Text,
-	TextInput,
-	TouchableOpacity,
-	View,
-} from 'react-native'
+import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native'
 
 interface RedisTestPanelProps {
 	recentUploadIds: string[]
@@ -28,7 +21,6 @@ export const RedisTestPanel = ({
 			}
 
 			const endpoint = `${API_BASE_URL}/upload-status/${savedUploadId}`
-			console.log(`Testing Redis chunks at: ${endpoint}`)
 
 			const response = await fetch(endpoint)
 			const data = await response.json()
@@ -52,17 +44,14 @@ export const RedisTestPanel = ({
 		}
 	}
 
-	const showAlert = (title: string, message?: string) => {
-		if (Platform.OS === 'web') {
-			alert(message ? `${title}\n\n${message}` : title)
-		} else {
-			Alert.alert(title, message)
-		}
-	}
+	const showAlert = (title: string, message?: string) =>
+		IS_WEB
+			? alert(message ? `${title}\n\n${message}` : title)
+			: Alert.alert(title, message)
 
 	const copyToClipboard = (id: string) => {
 		setSavedUploadId(id)
-		if (Platform.OS === 'web' && navigator.clipboard) {
+		if (IS_WEB && navigator.clipboard) {
 			navigator.clipboard.writeText(id)
 			showAlert('Copied to clipboard')
 		}

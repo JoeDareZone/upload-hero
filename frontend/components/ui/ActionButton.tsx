@@ -1,9 +1,5 @@
-import {
-	ActivityIndicator,
-	Platform,
-	Text,
-	TouchableOpacity,
-} from 'react-native'
+import { IS_WEB } from '@/utils/constants'
+import { ActivityIndicator, Text, TouchableOpacity } from 'react-native'
 
 type ActionButtonProps = {
 	onPress: () => void
@@ -20,20 +16,18 @@ export const ActionButton = ({
 	isUploading,
 	isAllFilesUploaded,
 }: ActionButtonProps) => {
-	const isWeb = Platform.OS === 'web'
-
 	return (
 		<TouchableOpacity
 			className={`${
 				disabled ? 'bg-gray-500' : 'bg-blue-600'
 			} p-4 rounded-xl mb-4 min-w-40 min-h-14 shadow-md active:opacity-80 ${
-				isWeb ? 'hover-highlight' : ''
+				IS_WEB ? 'hover-highlight' : ''
 			}`}
 			onPress={onPress}
 			disabled={disabled}
 			style={{
 				opacity: isLoading || isUploading || disabled ? 0.5 : 1,
-				cursor: isWeb && !disabled ? 'pointer' : undefined,
+				cursor: IS_WEB && !disabled ? 'pointer' : undefined,
 			}}
 		>
 			{isLoading ? (

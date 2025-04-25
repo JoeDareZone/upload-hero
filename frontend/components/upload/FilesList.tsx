@@ -1,6 +1,6 @@
 import { UploadFile } from '@/types/fileType'
+import { IS_WEB } from '@/utils/constants'
 import React from 'react'
-import { Platform } from 'react-native'
 import NativeFilesList from './FilesList.native'
 import WebFilesList from './FilesList.web'
 
@@ -12,9 +12,5 @@ export interface FilesListProps {
 }
 
 export default function FilesList(props: FilesListProps) {
-	return Platform.OS === 'web' ? (
-		<WebFilesList {...props} />
-	) : (
-		<NativeFilesList {...props} />
-	)
+	return IS_WEB ? <WebFilesList {...props} /> : <NativeFilesList {...props} />
 }

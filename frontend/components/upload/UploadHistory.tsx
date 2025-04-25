@@ -1,14 +1,8 @@
 import { UploadFile } from '@/types/fileType'
+import { IS_WEB } from '@/utils/constants'
 import { clearUploadHistory, getUploadHistory } from '@/utils/storageUtils'
 import React, { useEffect, useState } from 'react'
-import {
-	Image,
-	Platform,
-	ScrollView,
-	Text,
-	TouchableOpacity,
-	View,
-} from 'react-native'
+import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 
 interface UploadHistoryProps {
 	isVisible: boolean
@@ -20,7 +14,6 @@ export default function UploadHistory({
 	onClose,
 }: UploadHistoryProps) {
 	const [history, setHistory] = useState<UploadFile[]>([])
-	const isWeb = Platform.OS === 'web'
 
 	useEffect(() => {
 		if (isVisible) {
@@ -38,7 +31,7 @@ export default function UploadHistory({
 	return (
 		<View
 			className={`fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-60 z-50 ${
-				isWeb ? 'web-modal' : ''
+				IS_WEB ? 'web-modal' : ''
 			}`}
 		>
 			<View className='bg-gray-800 rounded-xl w-full max-w-lg p-5 m-4'>

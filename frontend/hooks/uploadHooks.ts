@@ -42,7 +42,6 @@ export const useFileSelection = (
 	const [isLoading, setIsLoading] = useState(false)
 
 	const handleError = (msg: string) => setErrors([msg])
-
 	const clearErrors = () => setErrors([])
 
 	const handlePickDocuments = async () => {
@@ -54,11 +53,10 @@ export const useFileSelection = (
 			const result = await pickDocuments()
 			if (result.canceled) return
 
-			if (result.assets.length > MAX_FILES) {
+			if (result.assets.length > MAX_FILES)
 				return handleError(
 					`You can upload a maximum of ${MAX_FILES} files.`
 				)
-			}
 
 			const { errors: newErrors, validFiles } = await validateFiles(
 				result.assets
@@ -76,6 +74,7 @@ export const useFileSelection = (
 	const handleTakePhoto = async () => {
 		clearErrors()
 		setIsLoading(true)
+
 		try {
 			const file = await pickImageFromCamera()
 			if (file) enqueueFile(createUploadFile(file))
