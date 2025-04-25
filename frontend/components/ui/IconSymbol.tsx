@@ -3,7 +3,8 @@ import { SymbolWeight } from 'expo-symbols'
 import React from 'react'
 import { OpaqueColorValue, StyleProp, TextStyle } from 'react-native'
 
-const MAPPING = {
+// Icon name mapping from SF Symbols to Material Icons
+export const MAPPING = {
 	'house.fill': 'home',
 	'paperplane.fill': 'send',
 	'chevron.left.forwardslash.chevron.right': 'code',
@@ -43,6 +44,7 @@ export function IconSymbol({
 
 	return (
 		<MaterialIcons
+			data-testid='material-icon'
 			color={color}
 			size={size}
 			name={iconName}

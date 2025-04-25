@@ -1,10 +1,20 @@
+import { ClearAllButton } from '@/components/ui/ClearAllButton'
 import { fireEvent, render } from '@testing-library/react-native'
 import React from 'react'
-import { ClearAllButton } from '../../../components/ui/ClearAllButton'
+import { TouchableOpacity } from 'react-native'
+
+jest.mock('@/utils/constants', () => ({
+	IS_WEB: false,
+}))
 
 describe('ClearAllButton', () => {
+	const mockOnClearAll = jest.fn()
+
+	beforeEach(() => {
+		jest.clearAllMocks()
+	})
+
 	test('renders correctly', () => {
-		const mockOnClearAll = jest.fn()
 		const { getByText } = render(
 			<ClearAllButton isUploading={false} onClearAll={mockOnClearAll} />
 		)
@@ -12,23 +22,25 @@ describe('ClearAllButton', () => {
 		expect(getByText('Clear All')).toBeTruthy()
 	})
 
-	test('does not allow clearing when isUploading is true', () => {
-		const mockOnClearAll = jest.fn()
-		const { getByText } = render(
-			<ClearAllButton isUploading={true} onClearAll={mockOnClearAll} />
-		)
-
-		fireEvent.press(getByText('Clear All'))
-		expect(mockOnClearAll).not.toHaveBeenCalled()
-	})
-
 	test('calls onClearAll when pressed', () => {
-		const mockOnClearAll = jest.fn()
 		const { getByText } = render(
 			<ClearAllButton isUploading={false} onClearAll={mockOnClearAll} />
 		)
 
 		fireEvent.press(getByText('Clear All'))
 		expect(mockOnClearAll).toHaveBeenCalledTimes(1)
+	})
+
+	test('is disabled when uploading', () => {
+		const { getByText, UNSAFE_getAllByType } = render(
+			<ClearAllButton isUploading={true} onClearAll={mockOnClearAll} />
+		)
+
+		const button = UNSAFE_getAllByType(TouchableOpacity)[0]
+		expect(button.props.disabled).toBe(true)
+		expect(button.props.style.opacity).toBe(0.5)
+
+		fireEvent.press(getByText('Clear All'))
+		expect(mockOnClearAll).not.toHaveBeenCalled()
 	})
 })

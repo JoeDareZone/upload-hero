@@ -4,7 +4,7 @@ import { CHUNK_SIZE } from '@/utils/constants'
 
 jest.mock('@/utils/constants', () => ({
 	IS_WEB: false,
-	CHUNK_SIZE: 1024 * 1024, // 1MB for testing
+	CHUNK_SIZE: 1024 * 1024,
 }))
 
 describe('chunkUtils', () => {
@@ -12,7 +12,7 @@ describe('chunkUtils', () => {
 		id: 'test-file-1',
 		name: 'test-file.jpg',
 		uri: 'file://test/test-file.jpg',
-		size: 5 * 1024 * 1024, // 5MB
+		size: 5 * 1024 * 1024,
 		mimeType: 'image/jpeg',
 		status: 'queued',
 		uploadedChunks: 0,
@@ -59,7 +59,7 @@ describe('chunkUtils', () => {
 		test('should handle partial chunks', () => {
 			const partialFile: UploadFile = {
 				...mockFile,
-				size: 4.5 * 1024 * 1024, // 4.5MB
+				size: 4.5 * 1024 * 1024,
 				totalChunks: 5,
 			}
 

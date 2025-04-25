@@ -7,18 +7,19 @@ import {
 } from '../../utils/helpers'
 
 jest.mock('axios')
+const mockedAxios = axios as jest.Mocked<typeof axios>
 
 describe('helpers', () => {
 	describe('convertBytesToMB', () => {
-		test('converts bytes to MB correctly', () => {
-			expect(convertBytesToMB(0)).toBe('0.00')
-			expect(convertBytesToMB(1024 * 1024)).toBe('1.00')
-			expect(convertBytesToMB(1024 * 1024 * 2.5)).toBe('2.50')
+		it('should convert bytes to MB with 2 decimal places', () => {
+			expect(convertBytesToMB(1048576)).toBe('1.00')
+			expect(convertBytesToMB(2097152)).toBe('2.00')
+			expect(convertBytesToMB(2621440)).toBe('2.50')
 		})
 	})
 
 	describe('convertUploadedChunksToPercentage', () => {
-		test('calculates percentage correctly', () => {
+		it('should calculate percentage correctly', () => {
 			expect(convertUploadedChunksToPercentage(0, 10)).toBe(0)
 			expect(convertUploadedChunksToPercentage(5, 10)).toBe(50)
 			expect(convertUploadedChunksToPercentage(10, 10)).toBe(100)
@@ -26,69 +27,70 @@ describe('helpers', () => {
 	})
 
 	describe('generateFileId', () => {
-		test('generates unique IDs', () => {
+		it('should generate a unique ID', () => {
 			const id1 = generateFileId()
 			const id2 = generateFileId()
+
 			expect(id1).not.toBe(id2)
 			expect(typeof id1).toBe('string')
+			expect(id1.includes('-')).toBe(true)
 		})
 	})
 
 	describe('getUserFriendlyErrorMessage', () => {
-		test('returns appropriate message for file exists error', () => {
-			const fileExistsError = { message: 'File already exists' }
-			expect(getUserFriendlyErrorMessage(fileExistsError)).toContain(
-				'already exists'
+		it('should handle duplicate file error', () => {
+			const error = new Error('File already exists')
+			expect(getUserFriendlyErrorMessage(error)).toBe(
+				'This file already exists in your uploads.'
 			)
 		})
 
-		test('returns appropriate message for axios errors', () => {
-			;(axios.isAxiosError as unknown as jest.Mock).mockImplementation(
-				() => true
-			)
+		it('should handle network errors', () => {
+			const networkError = { isAxiosError: true, response: null }
+			mockedAxios.isAxiosError.mockReturnValueOnce(true)
 
-			const errorWithNoResponse = {}
-			expect(getUserFriendlyErrorMessage(errorWithNoResponse)).toContain(
-				'Network error'
+			expect(getUserFriendlyErrorMessage(networkError)).toBe(
+				'Network error. Please check your connection and try again.'
 			)
-
-			const error400 = { response: { status: 400 } }
-			expect(getUserFriendlyErrorMessage(error400)).toContain(
-				'Invalid request'
-			)
-
-			const error401 = { response: { status: 401 } }
-			expect(getUserFriendlyErrorMessage(error401)).toContain(
-				'Authentication error'
-			)
-
-			const error403 = { response: { status: 403 } }
-			expect(getUserFriendlyErrorMessage(error403)).toContain(
-				'permission'
-			)
-
-			const error413 = { response: { status: 413 } }
-			expect(getUserFriendlyErrorMessage(error413)).toContain(
-				'File too large'
-			)
-
-			const error500 = { response: { status: 500 } }
-			expect(getUserFriendlyErrorMessage(error500)).toContain(
-				'Server error'
-			)
-
-			const errorOther = { response: { status: 999 } }
-			expect(getUserFriendlyErrorMessage(errorOther)).toContain('999')
 		})
 
-		test('returns generic message for unknown errors', () => {
-			;(axios.isAxiosError as unknown as jest.Mock).mockImplementation(
-				() => false
-			)
+		it('should handle HTTP status errors', () => {
+			mockedAxios.isAxiosError.mockReturnValue(true)
 
-			const unknownError = new Error('Something went wrong')
-			expect(getUserFriendlyErrorMessage(unknownError)).toContain(
-				'unexpected error'
+			const errorCases = [
+				{ status: 400, message: 'Invalid request. Please try again.' },
+				{
+					status: 401,
+					message: 'Authentication error. Please log in again.',
+				},
+				{
+					status: 403,
+					message: "You don't have permission to upload this file.",
+				},
+				{
+					status: 413,
+					message: 'File too large. Please select a smaller file.',
+				},
+				{
+					status: 500,
+					message: 'Server error. Please try again later.',
+				},
+				{
+					status: 418,
+					message: 'Upload failed (418). Please try again later.',
+				},
+			]
+
+			errorCases.forEach(({ status, message }) => {
+				const axiosError = { isAxiosError: true, response: { status } }
+				expect(getUserFriendlyErrorMessage(axiosError)).toBe(message)
+			})
+		})
+
+		it('should handle unexpected errors', () => {
+			mockedAxios.isAxiosError.mockReturnValueOnce(false)
+			expect(getUserFriendlyErrorMessage({})).toBe(
+				'An unexpected error occurred. Please try again.'
 			)
 		})
 	})
