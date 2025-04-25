@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import {
 	cleanupChunks,
+	cleanupUploadDirectory,
 	combineChunksIntoSingleFile,
 	getAndSortChunkFiles,
 	reassembleFile,
@@ -40,6 +41,7 @@ describe('finalizeUpload Controller', () => {
 		;(path.basename as jest.Mock).mockImplementation(path => {
 			return path.split('/').pop()
 		})
+		fs.rmSync = jest.fn()
 
 		interface MockStream {
 			on: jest.Mock<any, any>
@@ -266,6 +268,33 @@ describe('finalizeUpload Controller', () => {
 		})
 	})
 
+	describe('cleanupUploadDirectory', () => {
+		test('should delete the entire upload directory', () => {
+			const mockDir = '/path/to/upload-dir'
+			;(fs.existsSync as jest.Mock).mockReturnValueOnce(true)
+			;(fs.rmSync as jest.Mock).mockImplementationOnce(() => {})
+
+			cleanupUploadDirectory(mockDir)
+
+			expect(fs.existsSync).toHaveBeenCalledWith(mockDir)
+			expect(fs.rmSync).toHaveBeenCalledWith(mockDir, {
+				recursive: true,
+				force: true,
+			})
+		})
+
+		test('should not attempt to delete if directory does not exist', () => {
+			const mockDir = '/path/to/nonexistent-dir'
+			;(fs.existsSync as jest.Mock).mockReturnValueOnce(false)
+			;(fs.rmSync as jest.Mock).mockImplementationOnce(() => {})
+
+			cleanupUploadDirectory(mockDir)
+
+			expect(fs.existsSync).toHaveBeenCalledWith(mockDir)
+			expect(fs.rmSync).not.toHaveBeenCalled()
+		})
+	})
+
 	describe('reassembleFile', () => {
 		test('should successfully reassemble a file when all chunks exist', async () => {
 			const result = await reassembleFile(
@@ -279,6 +308,10 @@ describe('finalizeUpload Controller', () => {
 			expect(fs.existsSync).toHaveBeenCalledWith(mockTempDir)
 			expect(fs.createWriteStream).toHaveBeenCalledWith(mockFinalPath)
 			expect(fs.createReadStream).toHaveBeenCalledTimes(3)
+			expect(fs.rmSync).toHaveBeenCalledWith(mockTempDir, {
+				recursive: true,
+				force: true,
+			})
 		})
 
 		test('should return error if upload directory does not exist', async () => {

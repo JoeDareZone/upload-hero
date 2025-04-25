@@ -82,6 +82,12 @@ export function cleanupChunks(chunkFiles: string[]): void {
 	})
 }
 
+export function cleanupUploadDirectory(uploadDir: string): void {
+	if (fs.existsSync(uploadDir)) {
+		fs.rmSync(uploadDir, { recursive: true, force: true })
+	}
+}
+
 export const reassembleFile = async (
 	uploadId: string,
 	fileName: string,
@@ -134,6 +140,10 @@ export const reassembleFile = async (
 			writeStream.on('finish', resolve)
 			writeStream.on('error', reject)
 		})
+
+		cleanupChunks(chunkFiles)
+
+		cleanupUploadDirectory(tempDir)
 
 		return {
 			success: true,

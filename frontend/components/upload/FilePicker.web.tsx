@@ -146,9 +146,7 @@ export default function FilePicker({
 			e.preventDefault()
 			e.stopPropagation()
 			if (!isUploading && !isLoading && !isAllFilesUploaded) {
-				// Check if we can access file information during drag
 				if (e.dataTransfer?.items) {
-					// Show visual feedback even during drag
 					let hasSupportedFiles = false
 					for (let i = 0; i < e.dataTransfer.items.length; i++) {
 						const item = e.dataTransfer.items[i]

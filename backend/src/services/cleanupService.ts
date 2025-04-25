@@ -48,7 +48,6 @@ class CleanupService {
 		let redisConnected = false
 
 		try {
-			// Connect to Redis at the beginning of the operation
 			await redisService.connect()
 			redisConnected = true
 
@@ -83,7 +82,6 @@ class CleanupService {
 				}
 			}
 		} finally {
-			// Ensure Redis is disconnected at the end, regardless of success or failure
 			if (redisConnected) {
 				try {
 					await redisService.disconnect()

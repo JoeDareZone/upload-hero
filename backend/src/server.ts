@@ -38,6 +38,7 @@ process.on('SIGTERM', async () => {
 	cleanupService.stop()
 	server.close(() => {
 		console.log('HTTP server closed')
+		process.exit(0)
 	})
 })
 
@@ -47,5 +48,6 @@ process.on('SIGINT', async () => {
 	cleanupService.stop()
 	server.close(() => {
 		console.log('HTTP server closed')
+		process.exit(0)
 	})
 })

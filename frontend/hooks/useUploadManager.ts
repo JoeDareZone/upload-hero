@@ -192,7 +192,6 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 
 				if (attempts <= maxRetries) {
 					const exponentialBackoff = Math.pow(2, attempts) * 1000
-					// Exponential backoff
 					await new Promise(res =>
 						setTimeout(res, exponentialBackoff)
 					)

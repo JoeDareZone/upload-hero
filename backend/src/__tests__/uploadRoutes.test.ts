@@ -272,28 +272,24 @@ describe('Upload Routes', () => {
 		test('should return system metrics', async () => {
 			req = {}
 
-			// Mock the metrics response data
 			const mockMetrics = {
 				activeUploads: 0,
 				successfulUploads: 0,
 				failedUploads: 0,
-				cpuLoad: [0, 0, 0], // Mock static values
+				cpuLoad: [0, 0, 0],
 				memory: {
 					free: 1000,
 					total: 5000,
 				},
 			}
 
-			// Override the res.json method to directly call the mock
 			jsonMock.mockImplementation(data => {
 				return res
 			})
 
 			await getMetricsHandler(req as Request, res as Response)
 
-			// Just verify that json was called, but don't check specific values
 			expect(jsonMock).toHaveBeenCalled()
-			// Verify the shape of the data
 			const calledWith = jsonMock.mock.calls[0][0]
 			expect(calledWith).toHaveProperty('activeUploads')
 			expect(calledWith).toHaveProperty('successfulUploads')
@@ -374,7 +370,6 @@ describe('Upload Routes', () => {
 				} as any,
 			}
 
-			// Mock implementations
 			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
 			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
@@ -388,7 +383,6 @@ describe('Upload Routes', () => {
 			})
 			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
 
-			// Mock metadata file operations
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
 			;(fs.readJSON as jest.Mock).mockResolvedValueOnce({
 				chunks: { received: 0 },
@@ -436,7 +430,6 @@ describe('Upload Routes', () => {
 				} as any,
 			}
 
-			// Mock implementations
 			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
 			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
@@ -446,13 +439,11 @@ describe('Upload Routes', () => {
 			redisService.getChunksList.mockResolvedValueOnce([0])
 			redisService.updateChunksReceived.mockResolvedValueOnce(undefined)
 
-			// Metadata without chunks property
 			redisService.getUploadMetadata.mockResolvedValueOnce({
 				fileName: 'test.jpg',
 			})
 			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
 
-			// Mock metadata file operations
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
 			;(fs.readJSON as jest.Mock).mockResolvedValueOnce({
 				fileName: 'test.jpg',
@@ -482,7 +473,6 @@ describe('Upload Routes', () => {
 				} as any,
 			}
 
-			// Mock implementations
 			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
 			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
@@ -496,7 +486,6 @@ describe('Upload Routes', () => {
 			})
 			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
 
-			// Mock metadata file operations with an error
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
 			;(fs.readJSON as jest.Mock).mockRejectedValueOnce(
 				new Error('Metadata file error')
@@ -527,11 +516,9 @@ describe('Upload Routes', () => {
 				} as any,
 			}
 
-			// Mock existing chunk
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
 			;(fs.remove as jest.Mock).mockResolvedValueOnce(undefined)
 
-			// Rest of mocks
 			;(fs.ensureDir as jest.Mock).mockResolvedValueOnce(undefined)
 			;(fs.move as jest.Mock).mockResolvedValueOnce(undefined)
 
@@ -544,7 +531,6 @@ describe('Upload Routes', () => {
 			})
 			redisService.storeUploadMetadata.mockResolvedValueOnce(undefined)
 
-			// Mock metadata file operations
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
 
 			await uploadChunkHandler(req as Request, res as Response)
@@ -621,7 +607,7 @@ describe('Upload Routes', () => {
 			}
 
 			redisService.getUploadMetadata.mockResolvedValueOnce(metaData)
-			findFileByChecksum.mockResolvedValueOnce(null) // No duplicate file
+			findFileByChecksum.mockResolvedValueOnce(null)
 			reassembleFile.mockResolvedValueOnce({
 				success: true,
 				filePath: '/mock/uploads/final/file.jpg',
@@ -704,8 +690,8 @@ describe('Upload Routes', () => {
 
 			expect(reassembleFile).toHaveBeenCalledWith(
 				'test-upload-id',
-				'metadata-filename.jpg', // Using fileName from metadata
-				'metadata-user' // Using userId from metadata
+				'metadata-filename.jpg',
+				'metadata-user'
 			)
 			expect(storeFileChecksum).toHaveBeenCalledWith(
 				'abc123',
@@ -737,7 +723,6 @@ describe('Upload Routes', () => {
 
 			await finalizeUploadHandler(req as Request, res as Response)
 
-			// Should not store checksum for unsuccessful reassembly
 			expect(storeFileChecksum).not.toHaveBeenCalled()
 			expect(jsonMock).toHaveBeenCalledWith({
 				success: false,
@@ -794,10 +779,8 @@ describe('Upload Routes', () => {
 				},
 			}
 
-			// Mock redis operations
 			redisService.clearUploadData.mockResolvedValueOnce(undefined)
 
-			// Mock fs operations
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(true)
 			;(fs.remove as jest.Mock).mockResolvedValueOnce(undefined)
 
@@ -824,7 +807,6 @@ describe('Upload Routes', () => {
 				},
 			}
 
-			// Mock fs operations
 			;(fs.pathExists as jest.Mock).mockResolvedValueOnce(false)
 
 			await deleteUploadHandler(req as Request, res as Response)

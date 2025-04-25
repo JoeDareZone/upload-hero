@@ -4,7 +4,7 @@ import fs from 'fs-extra'
 import multer from 'multer'
 import os from 'os'
 import path from 'path'
-import { UPLOAD_DIR } from '../constants'
+import { UPLOAD_DIR, getUserStoragePath } from '../constants'
 import { reassembleFile } from '../controllers/finalizeUpload'
 import { findFileByChecksum, storeFileChecksum } from '../models/FileChecksum'
 import redisService from '../services/redisService'
@@ -244,72 +244,100 @@ export const uploadChunkHandler = async (req: Request, res: Response) => {
 
 router.post('/upload-chunk', upload.single('chunk'), uploadChunkHandler)
 
-export const finalizeUploadHandler = async (req: Request, res: Response) => {
-	const { uploadId, fileName, userId, checksum } = req.body
-
-	if (!uploadId) {
-		return res.status(400).json({
+// @ts-ignore
+router.post('/finalize-upload', async (req: Request, res: Response) => {
+	const { uploadId, totalChunks, fileName, mimeType, userId } = req.body
+	if (!uploadId || !totalChunks || !fileName) {
+		res.status(400).json({
 			success: false,
-			message: 'Missing uploadId',
+			message: 'Missing uploadId, totalChunks, or fileName',
 		})
+		return
 	}
+	metrics.activeUploads++
 
-	try {
-		await redisService.connect()
-		const metadata = await redisService.getUploadMetadata(uploadId)
+	const uploadDir = path.join(UPLOAD_DIR, uploadId)
+	await fs.ensureDir(uploadDir)
 
-		if (checksum) {
-			const existingFile = await findFileByChecksum(
-				checksum,
-				userId || metadata?.userId
-			)
-			if (existingFile) {
-				return res.json({
-					success: true,
-					filePath: existingFile,
-					isDuplicate: true,
-				})
+	const updateMetadataWithTotalChunks = async () => {
+		const metadataPath = path.join(uploadDir, 'metadata.json')
+		if (await fs.pathExists(metadataPath)) {
+			try {
+				const metadata = await fs.readJSON(metadataPath)
+				if (metadata.chunks) {
+					metadata.chunks.total = parseInt(totalChunks, 10)
+					await fs.writeJSON(metadataPath, metadata)
+				}
+			} catch (error) {
+				console.error('Error updating metadata:', error)
 			}
 		}
+	}
 
+	await updateMetadataWithTotalChunks()
+
+	try {
 		const result = await reassembleFile(
 			uploadId,
-			fileName || metadata?.fileName || '',
-			userId || metadata?.userId || 'anonymous'
+			fileName,
+			userId || 'anonymous'
 		)
 
-		if (
-			result &&
-			typeof result === 'object' &&
-			result.success &&
-			checksum
-		) {
-			await storeFileChecksum(
-				checksum,
-				result.filePath,
-				userId || metadata?.userId || 'anonymous'
-			)
+		if (!result.success) {
+			metrics.failedUploads++
+			return res.status(500).json({
+				success: false,
+				message: result.message || 'Failed to reassemble file',
+			})
 		}
 
-		metrics.successfulUploads += 1
-		metrics.activeUploads = Math.max(0, metrics.activeUploads - 1)
+		const finalFilePath = result.filePath
 
-		return res.json(result)
+		const buffer = await fs.readFile(finalFilePath)
+		const md5 = crypto.createHash('md5').update(buffer).digest('hex')
+
+		const existing = await findFileByChecksum(md5, userId || 'anonymous')
+		if (existing) {
+			await fs.remove(finalFilePath)
+			await redisService.clearUploadData(uploadId)
+
+			return res.json({
+				success: true,
+				message: 'File already exists',
+				filePath: existing,
+				isDuplicate: true,
+			})
+		}
+
+		const userPath = getUserStoragePath(userId || 'anonymous')
+		await fs.ensureDir(userPath)
+
+		const ext = path.extname(fileName)
+		const base = path.basename(fileName, ext)
+		const unique = `${base}_${md5}${ext}`
+		const dest = path.join(userPath, unique)
+		await fs.move(finalFilePath, dest)
+
+		await storeFileChecksum(md5, dest, userId || 'anonymous')
+
+		metrics.successfulUploads++
+		return res.json({
+			success: true,
+			message: 'Upload finalized successfully.',
+			filePath: dest,
+			checksum: md5,
+		})
 	} catch (err) {
-		metrics.failedUploads += 1
-		metrics.activeUploads = Math.max(0, metrics.activeUploads - 1)
-
+		metrics.failedUploads++
 		console.error('Error in finalize-upload:', err)
 		return res.status(500).json({
 			success: false,
 			message: err instanceof Error ? err.message : 'Unknown error',
 		})
+	} finally {
+		metrics.activeUploads--
 	}
-}
-
-router.post('/finalize-upload', function (req: Request, res: Response) {
-	finalizeUploadHandler(req, res)
-} as RequestHandler)
+})
 
 export const deleteUploadHandler = async (req: Request, res: Response) => {
 	const { uploadId } = req.params
