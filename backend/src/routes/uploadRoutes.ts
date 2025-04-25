@@ -262,7 +262,6 @@ export const finalizeUploadHandler = async (req: Request, res: Response) => {
 		const uploadDir = path.join(UPLOAD_DIR, uploadId)
 		await fs.ensureDir(uploadDir)
 
-		// Get metadata to use as fallback values
 		const metadata = await redisService.getUploadMetadata(uploadId)
 		const actualFileName = fileName || (metadata && metadata.fileName)
 		const actualUserId =
@@ -276,7 +275,6 @@ export const finalizeUploadHandler = async (req: Request, res: Response) => {
 			})
 		}
 
-		// Check for existing file with the same checksum
 		if (checksum) {
 			const existing = await findFileByChecksum(checksum, actualUserId)
 			if (existing) {

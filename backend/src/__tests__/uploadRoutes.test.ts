@@ -12,19 +12,16 @@ jest.mock('../constants', () => ({
 jest.mock('../controllers/finalizeUpload')
 jest.mock('../models/FileChecksum')
 
-// Create mock implementations for imported functions
 const findFileByChecksum = jest.fn()
 const storeFileChecksum = jest.fn()
 const reassembleFile = jest.fn()
 
-// Mock the FileChecksum module to return our mocks
 jest.mock('../models/FileChecksum', () => ({
 	findFileByChecksum: findFileByChecksum,
 	storeFileChecksum: storeFileChecksum,
 	cleanupOldChecksums: jest.fn(),
 }))
 
-// Mock the finalizeUpload controller
 jest.mock('../controllers/finalizeUpload', () => ({
 	reassembleFile: reassembleFile,
 }))
@@ -717,7 +714,6 @@ describe('Upload Routes', () => {
 				},
 			}
 
-			// No fileName in metadata
 			redisService.getUploadMetadata.mockResolvedValueOnce({
 				fileSize: 1024,
 				userId: 'test-user',
@@ -760,7 +756,6 @@ describe('Upload Routes', () => {
 			redisService.getUploadMetadata.mockResolvedValueOnce(metaData)
 			findFileByChecksum.mockResolvedValueOnce(null)
 
-			// Mock the fs.pathExists to return true for metadata.json
 			;(fs.pathExists as jest.Mock).mockImplementation((path: string) => {
 				if (path.endsWith('metadata.json')) {
 					return Promise.resolve(true)
@@ -768,7 +763,6 @@ describe('Upload Routes', () => {
 				return Promise.resolve(false)
 			})
 
-			// Mock fs.readJSON to return metadata with chunks
 			;(fs.readJSON as jest.Mock).mockResolvedValueOnce({
 				fileName: 'test.jpg',
 				chunks: {
@@ -784,7 +778,6 @@ describe('Upload Routes', () => {
 
 			await finalizeUploadHandler(req as Request, res as Response)
 
-			// Check that writeJSON was called with updated metadata
 			expect(fs.writeJSON).toHaveBeenCalledWith(
 				expect.stringContaining('metadata.json'),
 				expect.objectContaining({
@@ -825,7 +818,6 @@ describe('Upload Routes', () => {
 			redisService.getUploadMetadata.mockResolvedValueOnce(metaData)
 			findFileByChecksum.mockResolvedValueOnce(null)
 
-			// Mock the fs.pathExists to return true for metadata.json
 			;(fs.pathExists as jest.Mock).mockImplementation((path: string) => {
 				if (path.endsWith('metadata.json')) {
 					return Promise.resolve(true)
@@ -833,12 +825,10 @@ describe('Upload Routes', () => {
 				return Promise.resolve(false)
 			})
 
-			// Mock fs.readJSON to throw an error
 			;(fs.readJSON as jest.Mock).mockRejectedValueOnce(
 				new Error('Read error')
 			)
 
-			// Spy on console.error
 			const consoleErrorSpy = jest
 				.spyOn(console, 'error')
 				.mockImplementation()
@@ -850,13 +840,11 @@ describe('Upload Routes', () => {
 
 			await finalizeUploadHandler(req as Request, res as Response)
 
-			// Verify console.error was called
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				'Error updating metadata:',
 				expect.any(Error)
 			)
 
-			// Restore the console.error mock
 			consoleErrorSpy.mockRestore()
 
 			expect(reassembleFile).toHaveBeenCalledWith(
