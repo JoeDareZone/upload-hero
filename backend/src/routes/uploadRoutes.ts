@@ -4,7 +4,7 @@ import fs from 'fs-extra'
 import multer from 'multer'
 import os from 'os'
 import path from 'path'
-import { UPLOAD_DIR } from '../constants'
+import { UPLOAD_DIR, getUserStoragePath } from '../constants'
 import { reassembleFile } from '../controllers/finalizeUpload'
 import { findFileByChecksum, storeFileChecksum } from '../models/FileChecksum'
 import redisService from '../services/redisService'
@@ -246,13 +246,12 @@ export const uploadChunkHandler = async (req: Request, res: Response) => {
 router.post('/upload-chunk', upload.single('chunk'), uploadChunkHandler)
 
 export const finalizeUploadHandler = async (req: Request, res: Response) => {
-	const { uploadId, totalChunks, fileName, mimeType, userId, checksum } =
-		req.body
+	const { uploadId, totalChunks, fileName, userId } = req.body
 
-	if (!uploadId) {
+	if (!uploadId || !totalChunks || !fileName) {
 		return res.status(400).json({
 			success: false,
-			message: 'Missing uploadId',
+			message: 'Missing uploadId, totalChunks, or fileName',
 		})
 	}
 
@@ -263,95 +262,88 @@ export const finalizeUploadHandler = async (req: Request, res: Response) => {
 		const uploadDir = path.join(UPLOAD_DIR, uploadId)
 		await fs.ensureDir(uploadDir)
 
-		const metadata = await redisService.getUploadMetadata(uploadId)
-		const actualFileName = fileName || (metadata && metadata.fileName)
-		const actualUserId =
-			userId || (metadata && metadata.userId) || 'anonymous'
-
-		if (!actualFileName) {
-			metrics.failedUploads++
-			return res.status(400).json({
-				success: false,
-				message: 'Missing fileName and not found in metadata',
-			})
+		const updateMetadataWithTotalChunks = async () => {
+			const metadataPath = path.join(uploadDir, 'metadata.json')
+			if (await fs.pathExists(metadataPath)) {
+				try {
+					const metadata = await fs.readJSON(metadataPath)
+					if (metadata.chunks) {
+						metadata.chunks.total = parseInt(totalChunks, 10)
+						await fs.writeJSON(metadataPath, metadata)
+					}
+				} catch (error) {
+					logger.error('Error updating metadata:', error)
+				}
+			}
 		}
 
-		if (checksum) {
-			const existing = await findFileByChecksum(checksum, actualUserId)
+		await updateMetadataWithTotalChunks()
+
+		try {
+			const finalFilePath = await reassembleFile(
+				uploadId,
+				fileName,
+				userId || 'anonymous'
+			)
+
+			if (!finalFilePath.success) {
+				metrics.failedUploads++
+				return res.status(500).json({
+					success: false,
+					message:
+						finalFilePath.message || 'Failed to reassemble file',
+				})
+			}
+
+			const buffer = await fs.readFile(finalFilePath.filePath)
+			const md5 = crypto.createHash('md5').update(buffer).digest('hex')
+
+			const existing = await findFileByChecksum(
+				md5,
+				userId || 'anonymous'
+			)
+
 			if (existing) {
+				await fs.remove(finalFilePath.filePath)
+				await fs.remove(uploadDir)
 				await redisService.clearUploadData(uploadId)
 
 				return res.json({
 					success: true,
+					message: 'File already exists',
 					filePath: existing,
 					isDuplicate: true,
 				})
 			}
-		}
 
-		if (totalChunks) {
-			const updateMetadataWithTotalChunks = async () => {
-				const metadataPath = path.join(uploadDir, 'metadata.json')
-				if (await fs.pathExists(metadataPath)) {
-					try {
-						const metadata = await fs.readJSON(metadataPath)
-						if (metadata.chunks) {
-							metadata.chunks.total = parseInt(totalChunks, 10)
-							await fs.writeJSON(metadataPath, metadata)
-						}
-					} catch (error) {
-						logger.error('Error updating metadata:')
-					}
-				}
-			}
+			const userPath = getUserStoragePath(userId || 'anonymous')
+			await fs.ensureDir(userPath)
 
-			await updateMetadataWithTotalChunks()
-		}
+			const ext = path.extname(fileName)
+			const base = path.basename(fileName, ext)
+			const unique = `${base}_${md5}${ext}`
+			const dest = path.join(userPath, unique)
+			await fs.move(finalFilePath.filePath, dest)
 
-		const result = await reassembleFile(
-			uploadId,
-			actualFileName,
-			actualUserId
-		)
+			await storeFileChecksum(md5, dest, userId || 'anonymous')
+			await fs.remove(uploadDir)
+			await redisService.clearUploadData(uploadId)
 
-		if (!result.success) {
+			metrics.successfulUploads++
+			return res.json({
+				success: true,
+				message: 'Upload finalized successfully.',
+				filePath: dest,
+				checksum: md5,
+			})
+		} catch (err) {
 			metrics.failedUploads++
+			logger.error(`Error in finalize-upload: ${err}`)
 			return res.status(500).json({
 				success: false,
-				filePath: '',
-				message: result.message || 'Failed to reassemble file',
+				message: err instanceof Error ? err.message : 'Unknown error',
 			})
 		}
-
-		const finalFilePath = result.filePath
-
-		let fileChecksum = checksum
-		if (!fileChecksum) {
-			try {
-				const fileBuffer = await fs.readFile(finalFilePath)
-				const hash = crypto.createHash('md5')
-				hash.update(fileBuffer)
-				fileChecksum = hash.digest('hex')
-			} catch (error) {
-				logger.error(`Error calculating file checksum: ${error}`)
-				fileChecksum = crypto.randomBytes(16).toString('hex')
-			}
-		}
-
-		await storeFileChecksum(fileChecksum, finalFilePath, actualUserId)
-
-		metrics.successfulUploads++
-		return res.json({
-			success: true,
-			filePath: finalFilePath,
-		})
-	} catch (err) {
-		metrics.failedUploads++
-		logger.error(`Error in finalize-upload: ${err}`)
-		return res.status(500).json({
-			success: false,
-			message: err instanceof Error ? err.message : 'Unknown error',
-		})
 	} finally {
 		metrics.activeUploads--
 	}
