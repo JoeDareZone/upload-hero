@@ -3,13 +3,14 @@ import schedule from 'node-schedule'
 import path from 'path'
 import { FILE_RETENTION_PERIOD, UPLOAD_DIR } from '../constants'
 import { cleanupOldChecksums } from '../models/FileChecksum'
+import logger from '../utils/logger'
 import redisService from './redisService'
 
 class CleanupService {
 	private job: schedule.Job | null = null
 
 	start(cronSchedule = '*/5 * * * *') {
-		console.log('Starting upload cleanup service...')
+		logger.info('Starting upload cleanup service...')
 
 		this.job = schedule.scheduleJob(cronSchedule, () => {
 			Promise.all([
@@ -18,13 +19,13 @@ class CleanupService {
 			])
 				.then(([incompletesRemoved, oldFilesRemoved]) => {
 					if (incompletesRemoved > 0 || oldFilesRemoved > 0) {
-						console.log(
+						logger.info(
 							`Cleaned up ${incompletesRemoved} incomplete uploads and ${oldFilesRemoved} old files`
 						)
 					}
 				})
 				.catch(err => {
-					console.error('Error during upload cleanup:', err)
+					logger.error(`Error during upload cleanup: ${err}`)
 				})
 		})
 	}
@@ -33,7 +34,7 @@ class CleanupService {
 		if (this.job) {
 			this.job.cancel()
 			this.job = null
-			console.log('Upload cleanup service stopped')
+			logger.info('Upload cleanup service stopped')
 		}
 	}
 
@@ -68,9 +69,8 @@ class CleanupService {
 						try {
 							await redisService.clearUploadData(file)
 						} catch (redisError) {
-							console.error(
-								`Error cleaning Redis data for ${file}:`,
-								redisError
+							logger.error(
+								`Error cleaning Redis data for ${file}: ${redisError}`
 							)
 						}
 
@@ -78,7 +78,7 @@ class CleanupService {
 						removedCount++
 					}
 				} catch (err) {
-					console.error(`Error processing ${filePath}:`, err)
+					logger.error(`Error processing ${filePath}: ${err}`)
 				}
 			}
 		} finally {
@@ -86,7 +86,7 @@ class CleanupService {
 				try {
 					await redisService.disconnect()
 				} catch (error) {
-					console.error('Error disconnecting from Redis:', error)
+					logger.error(`Error disconnecting from Redis: ${error}`)
 				}
 			}
 		}
@@ -99,7 +99,7 @@ class CleanupService {
 			const retentionDays = FILE_RETENTION_PERIOD / (24 * 60 * 60 * 1000)
 			return await cleanupOldChecksums(retentionDays)
 		} catch (error) {
-			console.error('Error cleaning up old files:', error)
+			logger.error(`Error cleaning up old files: ${error}`)
 			return 0
 		}
 	}

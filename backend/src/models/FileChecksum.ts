@@ -1,6 +1,7 @@
 import fs from 'fs-extra'
 import path from 'path'
 import { UPLOAD_DIR } from '../constants'
+import logger from '../utils/logger'
 
 interface FileReference {
 	path: string
@@ -13,7 +14,7 @@ export const CHECKSUMS_DIR = path.join(UPLOAD_DIR, 'checksums')
 try {
 	fs.ensureDirSync(CHECKSUMS_DIR)
 } catch (error) {
-	console.error('Error creating checksums directory:', error)
+	logger.error(`Error creating checksums directory: ${error}`)
 }
 
 export async function findFileByChecksum(
@@ -49,7 +50,7 @@ export async function findFileByChecksum(
 
 		return null
 	} catch (error) {
-		console.error('Error finding file by checksum:', error)
+		logger.error(`Error finding file by checksum: ${error}`)
 		return null
 	}
 }
@@ -82,7 +83,7 @@ export async function storeFileChecksum(
 
 		await fs.writeJSON(checksumFile, data, { spaces: 2 })
 	} catch (error) {
-		console.error('Error storing file checksum:', error)
+		logger.error(`Error storing file checksum: ${error}`)
 	}
 }
 
@@ -128,7 +129,7 @@ export async function cleanupOldChecksums(
 
 		return removedCount
 	} catch (error) {
-		console.error('Error cleaning up old checksums:', error)
+		logger.error(`Error cleaning up old checksums: ${error}`)
 		return 0
 	}
 }

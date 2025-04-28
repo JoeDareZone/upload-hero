@@ -1,5 +1,6 @@
 import { createClient, RedisClientType } from 'redis'
 import { CHUNK_CACHE_TTL } from '../constants'
+import logger from '../utils/logger'
 
 class RedisService {
 	private client: RedisClientType
@@ -11,13 +12,13 @@ class RedisService {
 		})
 
 		this.client.on('error', (err: Error) => {
-			console.error('Redis client error:', err)
+			logger.error(`Redis client error: ${err}`)
 			this.isConnected = false
 		})
 
 		this.client.on('connect', () => {
 			if (process.env.NODE_ENV !== 'test') {
-				console.log('Connected to Redis')
+				logger.info('Connected to Redis')
 			}
 			this.isConnected = true
 		})
@@ -132,9 +133,8 @@ class RedisService {
 			await this.client.del(`upload:${uploadId}:metadata`)
 			await this.client.del(`upload:${uploadId}:chunksReceived`)
 		} catch (error) {
-			console.error(
-				`Error clearing Redis data for upload ${uploadId}:`,
-				error
+			logger.error(
+				`Error clearing Redis data for upload ${uploadId}: ${error}`
 			)
 		}
 	}
