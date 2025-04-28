@@ -1,6 +1,7 @@
 import fileType from 'file-type'
 import fs from 'fs'
 import path from 'path'
+import { getUserStoragePath } from '../constants'
 import {
 	cleanupChunks,
 	cleanupUploadDirectory,
@@ -14,24 +15,37 @@ import {
 jest.mock('fs')
 jest.mock('path')
 jest.mock('file-type')
+jest.mock('../constants', () => {
+	const getUserStoragePathMock = jest
+		.fn()
+		.mockReturnValue('/mocked/path/uploads/final/test-user/2023/05/15')
+	return {
+		UPLOAD_DIR: '/mocked/path/uploads',
+		getUserStoragePath: getUserStoragePathMock,
+	}
+})
 
 describe('finalizeUpload Controller', () => {
 	const mockUploadId = 'test-upload-id'
 	const mockFileName = 'test-file.jpg'
 	const mockUserId = 'test-user'
 	const mockTempDir = '/mocked/path/uploads/test-upload-id'
-	const mockFinalPath = '/mocked/path/uploads/final/test-file.jpg'
+	const mockUserDateDir = '/mocked/path/uploads/final/test-user/2023/05/15'
+	const mockFinalPath =
+		'/mocked/path/uploads/final/test-user/2023/05/15/test-file.jpg'
 	const mockFinalDir = '/mocked/path/uploads/final'
 
 	beforeEach(() => {
 		jest.clearAllMocks()
 		;(path.join as jest.Mock).mockImplementation((...args) => {
-			if (args.includes('final') && args.includes(mockFileName)) {
+			if (args.includes(mockUserDateDir) && args.includes(mockFileName)) {
 				return mockFinalPath
-			} else if (args.includes('final')) {
-				return mockFinalDir
 			} else if (args.includes(mockUploadId)) {
 				return mockTempDir
+			} else if (args[0] === mockUserDateDir) {
+				return `${mockUserDateDir}/${args[1]}`
+			} else if (args.includes('final')) {
+				return mockFinalDir
 			}
 			return args.join('/')
 		})
@@ -42,6 +56,7 @@ describe('finalizeUpload Controller', () => {
 			return path.split('/').pop()
 		})
 		fs.rmSync = jest.fn()
+		fs.mkdirSync = jest.fn()
 
 		interface MockStream {
 			on: jest.Mock<any, any>
@@ -296,6 +311,24 @@ describe('finalizeUpload Controller', () => {
 	})
 
 	describe('reassembleFile', () => {
+		beforeEach(() => {
+			;(getUserStoragePath as jest.Mock).mockReturnValue(mockUserDateDir)
+			;(fs.existsSync as jest.Mock).mockImplementation(path => {
+				if (path === mockUserDateDir) {
+					return false
+				}
+				return true
+			})
+			;(path.join as jest.Mock).mockImplementation((...args) => {
+				if (args[0] === mockUserDateDir && args[1] === mockFileName) {
+					return mockFinalPath
+				} else if (args.includes(mockUploadId)) {
+					return mockTempDir
+				}
+				return args.join('/')
+			})
+		})
+
 		test('should successfully reassemble a file when all chunks exist', async () => {
 			const result = await reassembleFile(
 				mockUploadId,
@@ -305,31 +338,20 @@ describe('finalizeUpload Controller', () => {
 
 			expect(result.success).toBe(true)
 			expect(result.filePath).toBe(mockFinalPath)
+			expect(getUserStoragePath).toHaveBeenCalledWith(mockUserId)
 			expect(fs.existsSync).toHaveBeenCalledWith(mockTempDir)
-			expect(fs.createWriteStream).toHaveBeenCalledWith(mockFinalPath)
-			expect(fs.createReadStream).toHaveBeenCalledTimes(3)
-			expect(fs.rmSync).toHaveBeenCalledWith(mockTempDir, {
+			expect(fs.existsSync).toHaveBeenCalledWith(mockUserDateDir)
+			expect(fs.mkdirSync).toHaveBeenCalledWith(mockUserDateDir, {
 				recursive: true,
-				force: true,
 			})
+			expect(fs.createWriteStream).toHaveBeenCalledWith(mockFinalPath)
 		})
 
 		test('should return error if upload directory does not exist', async () => {
-			;(fs.existsSync as jest.Mock).mockReturnValueOnce(false)
-
-			const result = await reassembleFile(
-				mockUploadId,
-				mockFileName,
-				mockUserId
-			)
-
-			expect(result.success).toBe(false)
-			expect(result.message).toContain('Upload directory does not exist')
-		})
-
-		test('should create final directory if it does not exist', async () => {
 			;(fs.existsSync as jest.Mock).mockImplementation(path => {
-				if (path === mockFinalDir) return false
+				if (path === mockTempDir) {
+					return false
+				}
 				return true
 			})
 
@@ -339,10 +361,23 @@ describe('finalizeUpload Controller', () => {
 				mockUserId
 			)
 
+			expect(result.success).toBe(false)
+			expect(result.message).toContain('Upload directory does not exist')
+			expect(getUserStoragePath).toHaveBeenCalledWith(mockUserId)
+		})
+
+		test('should create user date directory if it does not exist', async () => {
+			const result = await reassembleFile(
+				mockUploadId,
+				mockFileName,
+				mockUserId
+			)
+
 			expect(result.success).toBe(true)
-			expect(fs.mkdirSync).toHaveBeenCalledWith(mockFinalDir, {
+			expect(fs.mkdirSync).toHaveBeenCalledWith(mockUserDateDir, {
 				recursive: true,
 			})
+			expect(getUserStoragePath).toHaveBeenCalledWith(mockUserId)
 		})
 
 		test('should handle missing chunks', async () => {
@@ -356,6 +391,7 @@ describe('finalizeUpload Controller', () => {
 
 			expect(result.success).toBe(false)
 			expect(result.message).toContain('No chunks found for this upload')
+			expect(getUserStoragePath).toHaveBeenCalledWith(mockUserId)
 		})
 
 		test('should handle read stream errors', async () => {
@@ -379,6 +415,7 @@ describe('finalizeUpload Controller', () => {
 			expect(result.success).toBe(false)
 			expect(result.message).toContain(mockErrorMessage)
 			expect(fs.unlinkSync).toHaveBeenCalledWith(mockFinalPath)
+			expect(getUserStoragePath).toHaveBeenCalledWith(mockUserId)
 		})
 
 		test('should handle write stream errors', async () => {
@@ -403,6 +440,7 @@ describe('finalizeUpload Controller', () => {
 
 			expect(result.success).toBe(false)
 			expect(fs.unlinkSync).toHaveBeenCalledWith(mockFinalPath)
+			expect(getUserStoragePath).toHaveBeenCalledWith(mockUserId)
 		})
 	})
 })

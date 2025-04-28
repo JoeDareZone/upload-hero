@@ -201,6 +201,7 @@ export const finalizeUpload = async (
 			fileName: file.name,
 			fileSize: file.size,
 			mimeType: file.mimeType,
+			userId: 'anonymous',
 		})
 
 		if (response.data.isDuplicate) {

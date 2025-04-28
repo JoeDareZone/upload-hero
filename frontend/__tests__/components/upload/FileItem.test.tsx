@@ -230,10 +230,8 @@ describe('FileItem', () => {
 			/>
 		)
 
-		// Find the error icon by testId
 		const errorIcon = getByTestId('icon-exclamationmark.triangle.fill')
 
-		// Directly trigger the onPress function
 		errorIcon.props.onPress()
 
 		expect(mockRetry).toHaveBeenCalledWith(mockFileError.id)

@@ -2,9 +2,7 @@ import { UploadFile } from '@/types/fileType'
 import { fireEvent } from '@testing-library/react-native'
 import React from 'react'
 
-// Mock the entire FilePicker component as a simple component for testing
 jest.mock('@/components/upload/FilePicker.web', () => {
-	// Use a mock component factory that doesn't reference any out-of-scope variables
 	const mockComponent = (props: {
 		onFilesSelected: (files: UploadFile[]) => void
 		isUploading: boolean
@@ -20,7 +18,6 @@ jest.mock('@/components/upload/FilePicker.web', () => {
 			onError,
 		} = props
 
-		// Simulate the file selection process
 		const handleFileSelection = () => {
 			if (isUploading || isLoading || isAllFilesUploaded) return
 
@@ -38,7 +35,6 @@ jest.mock('@/components/upload/FilePicker.web', () => {
 			])
 		}
 
-		// Use React.createElement to create a mock component that can be rendered in tests
 		return React.createElement(
 			'div',
 			{
@@ -83,19 +79,16 @@ jest.mock('@/components/upload/FilePicker.web', () => {
 	}
 })
 
-// Mock constants
 jest.mock('@/utils/constants', () => ({
 	MAX_FILE_SIZE_MB: 100,
 	MAX_FILES: 5,
 }))
 
-// Mock IconSymbol component
 jest.mock('@/components/ui/IconSymbol', () => ({
 	IconSymbol: (props: { name: string }) =>
 		React.createElement('div', { 'data-testid': `icon-${props.name}` }),
 }))
 
-// Mock storage utils
 jest.mock('@/utils/storageUtils', () => ({
 	getIncompleteUploads: jest.fn().mockResolvedValue([]),
 }))
@@ -109,11 +102,9 @@ describe('FilePicker.web', () => {
 		// Clear all mocks
 		jest.clearAllMocks()
 
-		// Create our own lightweight render function for this test
 		mockOnFilesSelected = jest.fn()
 		mockOnError = jest.fn()
 
-		// Import render dynamically to avoid issues with React Native modules
 		const {
 			render: actualRender,
 		} = require('@testing-library/react-native')

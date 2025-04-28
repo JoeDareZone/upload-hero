@@ -325,11 +325,20 @@ export const finalizeUploadHandler = async (req: Request, res: Response) => {
 
 		const finalFilePath = result.filePath
 
-		await storeFileChecksum(
-			checksum || 'abc123',
-			finalFilePath,
-			actualUserId
-		)
+		let fileChecksum = checksum
+		if (!fileChecksum) {
+			try {
+				const fileBuffer = await fs.readFile(finalFilePath)
+				const hash = crypto.createHash('md5')
+				hash.update(fileBuffer)
+				fileChecksum = hash.digest('hex')
+			} catch (error) {
+				logger.error(`Error calculating file checksum: ${error}`)
+				fileChecksum = crypto.randomBytes(16).toString('hex')
+			}
+		}
+
+		await storeFileChecksum(fileChecksum, finalFilePath, actualUserId)
 
 		metrics.successfulUploads++
 		return res.json({

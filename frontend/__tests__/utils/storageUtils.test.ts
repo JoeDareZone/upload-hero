@@ -9,12 +9,10 @@ import {
 } from '@/utils/storageUtils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-// Mock constants first before other imports
 jest.mock('@/utils/constants', () => ({
 	IS_WEB: false,
 }))
 
-// Create proper mock for console.error
 const originalConsoleError = console.error
 console.error = jest.fn()
 
@@ -41,7 +39,6 @@ describe('storageUtils', () => {
 	beforeEach(() => {
 		jest.clearAllMocks()
 		AsyncStorage.clear()
-		// Properly clear the mock on console.error
 		jest.spyOn(console, 'error').mockClear()
 	})
 
@@ -58,7 +55,6 @@ describe('storageUtils', () => {
 
 			saveToUploadHistory(testUploadFile)
 
-			// Wait for promise resolution
 			await new Promise(resolve => setTimeout(resolve, 10))
 
 			expect(getItemSpy).toHaveBeenCalledWith('upload_history')
@@ -111,9 +107,7 @@ describe('storageUtils', () => {
 			)
 		})
 
-		// Skip this test for now as it's causing issues
 		test.skip('saveToUploadHistory should handle error in setItem', async () => {
-			// This test is skipped because it's flaky and hard to stabilize
 			expect(true).toBe(true)
 		})
 

@@ -1,8 +1,4 @@
-// Since mocking Platform is complex, we'll directly mock the constants module
-// without relying on Platform.OS
-
 describe('constants', () => {
-	// Reset modules before each test to ensure clean imports
 	beforeEach(() => {
 		jest.resetModules()
 	})
@@ -12,7 +8,6 @@ describe('constants', () => {
 	})
 
 	test('API_BASE_URL is defined', () => {
-		// Mock the constants directly
 		jest.doMock('../../utils/constants', () => ({
 			API_BASE_URL: 'http://localhost:4000',
 			CHUNK_SIZE: 1024 * 1024,
@@ -29,14 +24,12 @@ describe('constants', () => {
 	})
 
 	test('API_BASE_URL is set correctly based on platform', () => {
-		// For Android
 		jest.doMock('../../utils/constants', () => ({
 			API_BASE_URL: 'http://10.0.2.2:4000',
 		}))
 		const androidConstants = require('../../utils/constants')
 		expect(androidConstants.API_BASE_URL).toBe('http://10.0.2.2:4000')
 
-		// For iOS and other platforms
 		jest.resetModules()
 		jest.doMock('../../utils/constants', () => ({
 			API_BASE_URL: 'http://localhost:4000',
@@ -70,14 +63,12 @@ describe('constants', () => {
 	})
 
 	test('IS_WEB is determined by Platform.OS', () => {
-		// For web
 		jest.doMock('../../utils/constants', () => ({
 			IS_WEB: true,
 		}))
 		const webConstants = require('../../utils/constants')
 		expect(webConstants.IS_WEB).toBe(true)
 
-		// For non-web
 		jest.resetModules()
 		jest.doMock('../../utils/constants', () => ({
 			IS_WEB: false,

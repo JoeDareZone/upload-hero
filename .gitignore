@@ -57,3 +57,6 @@ android/
 
 # Coverage
 coverage/
+
+# Logs
+logs/

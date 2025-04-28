@@ -1,7 +1,7 @@
 import fileType from 'file-type'
 import fs from 'fs'
 import path from 'path'
-import { UPLOAD_DIR } from '../constants'
+import { UPLOAD_DIR, getUserStoragePath } from '../constants'
 
 export function getAndSortChunkFiles(
 	tempDir: string,
@@ -94,8 +94,14 @@ export const reassembleFile = async (
 	userId: string
 ): Promise<{ success: boolean; filePath: string; message?: string }> => {
 	const tempDir = path.join(UPLOAD_DIR, uploadId)
-	const finalDir = path.join(UPLOAD_DIR, 'final')
-	const finalFilePath = path.join(finalDir, fileName)
+
+	const userDateDir = getUserStoragePath(userId)
+
+	if (!fs.existsSync(userDateDir)) {
+		fs.mkdirSync(userDateDir, { recursive: true })
+	}
+
+	const finalFilePath = path.join(userDateDir, fileName)
 
 	if (!fs.existsSync(tempDir)) {
 		return {
@@ -103,10 +109,6 @@ export const reassembleFile = async (
 			filePath: '',
 			message: `Upload directory does not exist: ${tempDir}`,
 		}
-	}
-
-	if (!fs.existsSync(finalDir)) {
-		fs.mkdirSync(finalDir, { recursive: true })
 	}
 
 	try {

@@ -1,16 +1,13 @@
 import { UploadFile } from '@/types/fileType'
 import { CHUNK_SIZE } from '@/utils/constants'
 
-// Mock the constants module before importing chunkUtils
 jest.mock('@/utils/constants', () => ({
 	IS_WEB: false,
 	CHUNK_SIZE: 1024 * 1024, // 1MB
 }))
 
-// Now import chunkUtils after mocking the constants
 import { createChunks } from '@/utils/chunkUtils'
 
-// Setup for non-web tests
 const setupNonWebEnvironment = () => {
 	jest.resetModules()
 	jest.doMock('@/utils/constants', () => ({
@@ -19,7 +16,6 @@ const setupNonWebEnvironment = () => {
 	}))
 }
 
-// Setup for web tests
 const setupWebEnvironment = () => {
 	jest.resetModules()
 	jest.doMock('@/utils/constants', () => ({
@@ -28,7 +24,6 @@ const setupWebEnvironment = () => {
 	}))
 }
 
-// Declare additional globals for TypeScript
 declare global {
 	namespace NodeJS {
 		interface Global {
@@ -38,7 +33,6 @@ declare global {
 }
 
 describe('chunkUtils', () => {
-	// Set up non-web environment by default
 	beforeEach(() => {
 		jest.resetModules()
 	})
@@ -55,7 +49,6 @@ describe('chunkUtils', () => {
 	}
 
 	describe('createChunks in non-web environment', () => {
-		// Use the already imported createChunks for these tests
 		test('should create correct number of chunks', () => {
 			const chunks = createChunks(mockFile)
 			expect(chunks.length).toBe(5)
@@ -140,22 +133,18 @@ describe('chunkUtils', () => {
 
 	describe('createChunks in web environment', () => {
 		beforeEach(() => {
-			// Update mock to use web environment
 			jest.resetModules()
 			jest.mock('@/utils/constants', () => ({
 				IS_WEB: true,
 				CHUNK_SIZE: 1024 * 1024,
 			}))
 
-			// Re-import after mock reset
 			jest.resetModules()
 
-			// Mock URL.createObjectURL
 			global.URL.createObjectURL = jest.fn(() => 'blob:http://test-url')
 		})
 
 		test('should create blob URLs for web files', () => {
-			// Re-import chunkUtils to get the updated constants
 			const {
 				createChunks: webCreateChunks,
 			} = require('@/utils/chunkUtils')
@@ -176,14 +165,12 @@ describe('chunkUtils', () => {
 		})
 
 		test('should mark chunks as resume when file is not available in web', () => {
-			// Re-import chunkUtils to get the updated constants
 			const {
 				createChunks: webCreateChunks,
 			} = require('@/utils/chunkUtils')
 
 			const webFileWithoutBlob: UploadFile = {
 				...mockFile,
-				// No file property
 			}
 
 			const chunks = webCreateChunks(webFileWithoutBlob)
@@ -193,7 +180,6 @@ describe('chunkUtils', () => {
 		})
 
 		test('should handle resume with file instance in web', () => {
-			// Re-import chunkUtils to get the updated constants
 			const {
 				createChunks: webCreateChunks,
 			} = require('@/utils/chunkUtils')
