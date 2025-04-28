@@ -7,12 +7,21 @@ import {
 	findFileByChecksum,
 	storeFileChecksum,
 } from '../models/FileChecksum'
+import logger from '../utils/logger'
 
 jest.mock('fs-extra')
 const mockFs = fs as jest.Mocked<typeof fs>
 
 jest.mock('path')
 const mockPath = path as jest.Mocked<typeof path>
+
+// Mock logger
+jest.mock('../utils/logger', () => ({
+	error: jest.fn(),
+	info: jest.fn(),
+	warn: jest.fn(),
+	debug: jest.fn(),
+}))
 
 describe('FileChecksum Model', () => {
 	const mockChecksum = 'abc123'
@@ -135,9 +144,6 @@ describe('FileChecksum Model', () => {
 		})
 
 		test('should handle errors gracefully', async () => {
-			const consoleErrorSpy = jest
-				.spyOn(console, 'error')
-				.mockImplementation(() => {})
 			mockFs.pathExists.mockRejectedValue(
 				new Error('Test error') as never
 			)
@@ -145,9 +151,7 @@ describe('FileChecksum Model', () => {
 			const result = await findFileByChecksum(mockChecksum, mockUserId)
 
 			expect(result).toBeNull()
-			expect(consoleErrorSpy).toHaveBeenCalled()
-
-			consoleErrorSpy.mockRestore()
+			expect(logger.error).toHaveBeenCalled()
 		})
 	})
 
@@ -208,23 +212,16 @@ describe('FileChecksum Model', () => {
 		})
 
 		test('should handle errors gracefully', async () => {
-			const consoleErrorSpy = jest
-				.spyOn(console, 'error')
-				.mockImplementation(() => {})
-
 			mockFs.pathExists.mockRejectedValue(
 				new Error('Test error') as never
 			)
 
 			await storeFileChecksum('abc123', '/path/file.jpg', 'user1')
 
-			expect(consoleErrorSpy).toHaveBeenCalled()
-			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'Error storing file checksum:',
-				expect.any(Error)
+			expect(logger.error).toHaveBeenCalled()
+			expect(logger.error).toHaveBeenCalledWith(
+				'Error storing file checksum: Error: Test error'
 			)
-
-			consoleErrorSpy.mockRestore()
 		})
 	})
 
@@ -333,17 +330,12 @@ describe('FileChecksum Model', () => {
 		})
 
 		test('should handle errors gracefully', async () => {
-			const consoleErrorSpy = jest
-				.spyOn(console, 'error')
-				.mockImplementation(() => {})
 			mockFs.readdir.mockRejectedValue(new Error('Test error') as never)
 
 			const result = await cleanupOldChecksums(30)
 
 			expect(result).toBe(0)
-			expect(consoleErrorSpy).toHaveBeenCalled()
-
-			consoleErrorSpy.mockRestore()
+			expect(logger.error).toHaveBeenCalled()
 		})
 
 		test('should use default retention period if none specified', async () => {
