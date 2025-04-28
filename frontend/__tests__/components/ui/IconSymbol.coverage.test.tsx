@@ -4,16 +4,18 @@ import { Platform } from 'react-native'
 
 const isIOS = Platform.OS === 'ios'
 
-const MockSymbolView = (props: any) => <mock-symbol-view {...props} />
+jest.mock('expo-symbols', () => {
+	return {
+		SymbolView: jest.fn(() => null),
+		SymbolWeight: {
+			regular: 'regular',
+			medium: 'medium',
+			bold: 'bold',
+		},
+	}
+})
 
-jest.mock('expo-symbols', () => ({
-	SymbolView: MockSymbolView,
-	SymbolWeight: {
-		regular: 'regular',
-		medium: 'medium',
-		bold: 'bold',
-	},
-}))
+const mockExpoSymbols = require('expo-symbols')
 
 import { IconSymbol } from '@/components/ui/IconSymbol'
 
@@ -36,45 +38,60 @@ declare global {
 
 describe('IconSymbol iOS Implementation', () => {
 	beforeEach(() => {
+		jest.clearAllMocks()
 		expect(isIOS).toBe(true)
 	})
 
 	test('renders with default size and weight', () => {
-		const { UNSAFE_getAllByType } = render(
-			<IconSymbol name='pause' color='red' />
-		)
+		render(<IconSymbol name='pause' color='red' />)
 
-		const icon = UNSAFE_getAllByType(MockSymbolView)[0]
-		expect(icon.props.name).toBe('pause')
-		expect(icon.props.tintColor).toBe('red')
-		expect(icon.props.weight).toBe('regular')
-		expect(icon.props.style[0].width).toBe(24)
-		expect(icon.props.style[0].height).toBe(24)
+		expect(mockExpoSymbols.SymbolView).toHaveBeenCalledWith(
+			expect.objectContaining({
+				name: 'pause',
+				tintColor: 'red',
+				weight: 'regular',
+				style: expect.arrayContaining([
+					expect.objectContaining({
+						width: 24,
+						height: 24,
+					}),
+				]),
+			}),
+			expect.anything()
+		)
 	})
 
 	test('renders with custom size', () => {
-		const { UNSAFE_getAllByType } = render(
-			<IconSymbol name='play' color='blue' size={32} />
-		)
+		render(<IconSymbol name='play' color='blue' size={32} />)
 
-		const icon = UNSAFE_getAllByType(MockSymbolView)[0]
-		expect(icon.props.name).toBe('play')
-		expect(icon.props.style[0].width).toBe(32)
-		expect(icon.props.style[0].height).toBe(32)
+		expect(mockExpoSymbols.SymbolView).toHaveBeenCalledWith(
+			expect.objectContaining({
+				name: 'play',
+				style: expect.arrayContaining([
+					expect.objectContaining({
+						width: 32,
+						height: 32,
+					}),
+				]),
+			}),
+			expect.anything()
+		)
 	})
 
 	test('renders with custom weight', () => {
-		const { UNSAFE_getAllByType } = render(
-			<IconSymbol name='trash' color='green' weight='bold' />
-		)
+		render(<IconSymbol name='trash' color='green' weight='bold' />)
 
-		const icon = UNSAFE_getAllByType(MockSymbolView)[0]
-		expect(icon.props.weight).toBe('bold')
+		expect(mockExpoSymbols.SymbolView).toHaveBeenCalledWith(
+			expect.objectContaining({
+				weight: 'bold',
+			}),
+			expect.anything()
+		)
 	})
 
 	test('renders with custom style', () => {
 		const customStyle = { opacity: 0.5 }
-		const { UNSAFE_getAllByType } = render(
+		render(
 			<IconSymbol
 				name='checkmark.circle.fill'
 				color='yellow'
@@ -82,16 +99,22 @@ describe('IconSymbol iOS Implementation', () => {
 			/>
 		)
 
-		const icon = UNSAFE_getAllByType(MockSymbolView)[0]
-		expect(icon.props.style[1]).toBe(customStyle)
+		expect(mockExpoSymbols.SymbolView).toHaveBeenCalledWith(
+			expect.objectContaining({
+				style: expect.arrayContaining([expect.anything(), customStyle]),
+			}),
+			expect.anything()
+		)
 	})
 
 	test('sets correct props for SymbolView component', () => {
-		const { UNSAFE_getAllByType } = render(
-			<IconSymbol name='house.fill' color='black' />
-		)
+		render(<IconSymbol name='house.fill' color='black' />)
 
-		const icon = UNSAFE_getAllByType(MockSymbolView)[0]
-		expect(icon.props.resizeMode).toBe('scaleAspectFit')
+		expect(mockExpoSymbols.SymbolView).toHaveBeenCalledWith(
+			expect.objectContaining({
+				resizeMode: 'scaleAspectFit',
+			}),
+			expect.anything()
+		)
 	})
 })
