@@ -1,5 +1,26 @@
 import '@testing-library/jest-native/extend-expect'
 
+const mockPreventAutoHideAsync = jest.fn()
+const mockHideAsync = jest.fn()
+
+jest.mock('expo-splash-screen', () => ({
+	preventAutoHideAsync: mockPreventAutoHideAsync,
+	hideAsync: mockHideAsync,
+}))
+
+const mockUseFonts = jest.fn(() => [true])
+jest.mock('expo-font', () => ({
+	useFonts: mockUseFonts,
+}))
+
+jest.mock(
+	'@/utils/constants',
+	() => ({
+		IS_WEB: false,
+	}),
+	{ virtual: true }
+)
+
 jest.mock('react-native', () => {
 	const RN = jest.requireActual('react-native')
 
@@ -68,6 +89,9 @@ jest.mock('expo-router', () => ({
 		goBack: jest.fn(),
 	}),
 	Link: 'Link',
+	Stack: {
+		Screen: ({ name, options }) => null,
+	},
 }))
 
 jest.mock('react-native-progress', () => ({

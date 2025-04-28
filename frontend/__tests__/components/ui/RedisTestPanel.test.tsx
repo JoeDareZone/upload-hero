@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react-native'
+import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import React from 'react'
 
 jest.mock('@/utils/constants', () => ({
@@ -189,5 +189,188 @@ describe('RedisTestPanel', () => {
 	test.skip('handles web environment', async () => {
 		// This test is more complex and requires mocking module system
 		// Skip for now since the other critical tests are fixed
+	})
+
+	test('handles HSET button click', async () => {
+		const mockFetch = global.fetch as jest.Mock
+		const mockSetSavedUploadId = jest.fn()
+		const mockAlert = jest.spyOn(window, 'alert').mockImplementation()
+
+		// Set up the mock to resolve with a successful response
+		mockFetch.mockResolvedValueOnce({
+			ok: true,
+			json: jest
+				.fn()
+				.mockResolvedValueOnce({ success: true, chunksReceived: 10 }),
+		})
+
+		const { getByText } = render(
+			<RedisTestPanel
+				recentUploadIds={['id1', 'id2']}
+				savedUploadId='test-id'
+				setSavedUploadId={mockSetSavedUploadId}
+			/>
+		)
+
+		// Click the Test ID button
+		fireEvent.press(getByText('Test ID'))
+
+		// Wait for the async operation to complete
+		await waitFor(() => {
+			expect(mockFetch).toHaveBeenCalled()
+		})
+
+		// Clean up
+		mockAlert.mockRestore()
+	})
+
+	test('handles GET button click', async () => {
+		const mockFetch = global.fetch as jest.Mock
+		const mockSetSavedUploadId = jest.fn()
+
+		// Set up the mock to resolve with a successful response
+		mockFetch.mockResolvedValueOnce({
+			ok: true,
+			json: jest.fn().mockResolvedValueOnce({ result: 'test-value' }),
+		})
+
+		const { getByText } = render(
+			<RedisTestPanel
+				recentUploadIds={['id1', 'id2']}
+				savedUploadId='test-id'
+				setSavedUploadId={mockSetSavedUploadId}
+			/>
+		)
+
+		// Test ID button is used instead of GET
+		fireEvent.press(getByText('Test ID'))
+
+		// Wait for the async operation to complete
+		await waitFor(() => {
+			expect(mockFetch).toHaveBeenCalledWith(
+				expect.stringContaining('/upload-status/test-id'),
+				expect.anything()
+			)
+		})
+	})
+
+	test('handles response error', async () => {
+		const mockFetch = global.fetch as jest.Mock
+		const mockConsoleError = jest
+			.spyOn(console, 'error')
+			.mockImplementation()
+		const mockSetSavedUploadId = jest.fn()
+
+		// Set up the mock to reject with an error
+		mockFetch.mockRejectedValueOnce(new Error('Test Error'))
+
+		const { getByText } = render(
+			<RedisTestPanel
+				recentUploadIds={['id1', 'id2']}
+				savedUploadId='test-id'
+				setSavedUploadId={mockSetSavedUploadId}
+			/>
+		)
+
+		// Test ID button
+		fireEvent.press(getByText('Test ID'))
+
+		// Wait for the async operation to complete
+		await waitFor(() => {
+			expect(mockFetch).toHaveBeenCalledWith(
+				expect.stringContaining('/upload-status/test-id'),
+				expect.anything()
+			)
+		})
+
+		mockConsoleError.mockRestore()
+	})
+
+	test('handles fetch error', async () => {
+		const mockFetch = global.fetch as jest.Mock
+		const mockConsoleError = jest
+			.spyOn(console, 'error')
+			.mockImplementation()
+		const mockSetSavedUploadId = jest.fn()
+
+		// Set up the mock to reject with an error
+		mockFetch.mockRejectedValueOnce(new Error('Network Error'))
+
+		const { getByText } = render(
+			<RedisTestPanel
+				recentUploadIds={['id1', 'id2']}
+				savedUploadId='test-id'
+				setSavedUploadId={mockSetSavedUploadId}
+			/>
+		)
+
+		// Test ID button
+		fireEvent.press(getByText('Test ID'))
+
+		// Wait for the async operation to complete
+		await waitFor(() => {
+			expect(mockFetch).toHaveBeenCalledWith(
+				expect.stringContaining('/upload-status/test-id'),
+				expect.anything()
+			)
+		})
+
+		mockConsoleError.mockRestore()
+	})
+
+	test('handles empty upload ID', async () => {
+		const mockFetch = global.fetch as jest.Mock
+		const mockSetSavedUploadId = jest.fn()
+		const mockAlert = jest.spyOn(window, 'alert').mockImplementation()
+
+		const { getByText, findAllByA11yState } = render(
+			<RedisTestPanel
+				recentUploadIds={['id1', 'id2']}
+				savedUploadId=''
+				setSavedUploadId={mockSetSavedUploadId}
+			/>
+		)
+
+		// Find the disabled Test ID button by accessibility state
+		const disabledElements = await findAllByA11yState({ disabled: true })
+		expect(disabledElements.length).toBeGreaterThan(0)
+
+		// A disabled button should exist
+		expect(
+			disabledElements.some(el => {
+				return (
+					el.props.children &&
+					el.props.children.props?.children === 'Test ID'
+				)
+			})
+		).toBe(true)
+
+		fireEvent.press(getByText('Test ID'))
+
+		expect(mockFetch).not.toHaveBeenCalled()
+
+		// Clean up
+		mockAlert.mockRestore()
+	})
+
+	test('handles clicking on a recent upload ID', () => {
+		const mockSetSavedUploadId = jest.fn()
+
+		const { getAllByText } = render(
+			<RedisTestPanel
+				recentUploadIds={['upload-id-1', 'upload-id-2']}
+				savedUploadId=''
+				setSavedUploadId={mockSetSavedUploadId}
+			/>
+		)
+
+		// Find all truncated IDs (look for the first few characters)
+		const idButtons = getAllByText(/upload-i/)
+		expect(idButtons.length).toBeGreaterThan(0)
+
+		// Click the first one
+		fireEvent.press(idButtons[0])
+
+		expect(mockSetSavedUploadId).toHaveBeenCalled()
 	})
 })

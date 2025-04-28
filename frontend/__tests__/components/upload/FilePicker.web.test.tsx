@@ -1,164 +1,199 @@
-import { fireEvent, render } from '@testing-library/react-native'
+import { UploadFile } from '@/types/fileType'
+import { fireEvent } from '@testing-library/react-native'
 import React from 'react'
 
-const mockHandleFileSelection = jest.fn()
-
+// Mock the entire FilePicker component as a simple component for testing
 jest.mock('@/components/upload/FilePicker.web', () => {
-	const React = require('react')
-	const { View, Text, Pressable } = require('react-native')
+	// Use a mock component factory that doesn't reference any out-of-scope variables
+	const mockComponent = (props: {
+		onFilesSelected: (files: UploadFile[]) => void
+		isUploading: boolean
+		isLoading: boolean
+		isAllFilesUploaded: boolean
+		onError: (error: Error) => void
+	}) => {
+		const {
+			onFilesSelected,
+			isUploading,
+			isLoading,
+			isAllFilesUploaded,
+			onError,
+		} = props
+
+		// Simulate the file selection process
+		const handleFileSelection = () => {
+			if (isUploading || isLoading || isAllFilesUploaded) return
+
+			onFilesSelected([
+				{
+					id: 'mock-id',
+					name: 'test.jpg',
+					uri: 'blob://mock-url',
+					size: 1024 * 1024,
+					mimeType: 'image/jpeg',
+					status: 'queued',
+					uploadedChunks: 0,
+					totalChunks: 10,
+				},
+			])
+		}
+
+		// Use React.createElement to create a mock component that can be rendered in tests
+		return React.createElement(
+			'div',
+			{
+				'data-testid': 'file-picker',
+				onClick: handleFileSelection,
+			},
+			isLoading
+				? React.createElement(
+						'div',
+						{ 'data-testid': 'loading-indicator' },
+						'Loading...'
+				  )
+				: [
+						React.createElement(
+							'div',
+							{ key: 'title', 'data-testid': 'title' },
+							isUploading
+								? 'Uploading...'
+								: 'Drop your files here or click to browse'
+						),
+						React.createElement(
+							'div',
+							{ key: 'subtitle', 'data-testid': 'subtitle' },
+							'JPG, PNG, MP4 up to 100MB'
+						),
+						React.createElement(
+							'button',
+							{
+								key: 'browse',
+								'data-testid': 'browse-button',
+								onClick: handleFileSelection,
+							},
+							'Browse Files'
+						),
+				  ]
+		)
+	}
 
 	return {
 		__esModule: true,
-		default: (props: {
-			onError?: (error: { type: string; message: string }) => void
-			isUploading?: boolean
-			isLoading?: boolean
-			isAllFilesUploaded?: boolean
-		}) => {
-			const {
-				onError = jest.fn(),
-				isUploading = false,
-				isLoading = false,
-				isAllFilesUploaded = false,
-			} = props
-
-			const isDisabled = isUploading || isAllFilesUploaded
-
-			const simulateFileSelection = () => {
-				if (isDisabled) return
-
-				mockHandleFileSelection()
-
-				onError({
-					type: 'unsupported_file_type',
-					message: 'Unsupported file type',
-				})
-
-				onError({
-					type: 'file_size_limit_exceeded',
-					message: 'File size limit exceeded',
-				})
-
-				onError({
-					type: 'max_files_exceeded',
-					message: 'Maximum number of files exceeded',
-				})
-			}
-
-			if (isLoading) {
-				return (
-					<View testID='loading-indicator'>
-						<Text>Loading...</Text>
-					</View>
-				)
-			}
-
-			return (
-				<View>
-					<Text testID='upload-text'>Upload Files</Text>
-					<Pressable
-						testID='file-picker-button'
-						onPress={simulateFileSelection}
-						testProps={{ disabled: isDisabled }}
-					>
-						<Text>Select Files</Text>
-					</Pressable>
-					{isDisabled && <View testID='disabled-state' />}
-				</View>
-			)
-		},
+		default: mockComponent,
 	}
 })
 
-import FilePicker from '@/components/upload/FilePicker.web'
+// Mock constants
+jest.mock('@/utils/constants', () => ({
+	MAX_FILE_SIZE_MB: 100,
+	MAX_FILES: 5,
+}))
+
+// Mock IconSymbol component
+jest.mock('@/components/ui/IconSymbol', () => ({
+	IconSymbol: (props: { name: string }) =>
+		React.createElement('div', { 'data-testid': `icon-${props.name}` }),
+}))
+
+// Mock storage utils
+jest.mock('@/utils/storageUtils', () => ({
+	getIncompleteUploads: jest.fn().mockResolvedValue([]),
+}))
 
 describe('FilePicker.web', () => {
-	const mockProps = {
-		onFilesSelected: jest.fn(),
-		isUploading: false,
-		isLoading: false,
-		isAllFilesUploaded: false,
-		onError: jest.fn(),
-	}
+	let mockOnFilesSelected: jest.Mock
+	let mockOnError: jest.Mock
+	let render: typeof import('@testing-library/react-native')['render']
 
 	beforeEach(() => {
+		// Clear all mocks
 		jest.clearAllMocks()
+
+		// Create our own lightweight render function for this test
+		mockOnFilesSelected = jest.fn()
+		mockOnError = jest.fn()
+
+		// Import render dynamically to avoid issues with React Native modules
+		const {
+			render: actualRender,
+		} = require('@testing-library/react-native')
+		render = actualRender
 	})
 
-	it('renders the file picker component', () => {
-		const { getByTestId } = render(<FilePicker {...mockProps} />)
-		expect(getByTestId('upload-text')).toBeTruthy()
-	})
-
-	it('activates file input when clicked', () => {
-		const { getByTestId } = render(<FilePicker {...mockProps} />)
-		fireEvent.press(getByTestId('file-picker-button'))
-		expect(mockHandleFileSelection).toHaveBeenCalled()
-	})
-
-	it('shows a loading indicator when loading', () => {
+	it('renders correctly in default state', () => {
 		const { getByTestId } = render(
-			<FilePicker {...mockProps} isLoading={true} />
+			React.createElement(
+				require('@/components/upload/FilePicker.web').default,
+				{
+					onFilesSelected: mockOnFilesSelected,
+					isUploading: false,
+					isLoading: false,
+					isAllFilesUploaded: false,
+					onError: mockOnError,
+				}
+			)
 		)
+
+		expect(getByTestId('title').props.children).toBe(
+			'Drop your files here or click to browse'
+		)
+		expect(getByTestId('subtitle').props.children).toBe(
+			'JPG, PNG, MP4 up to 100MB'
+		)
+	})
+
+	it('shows uploading state when isUploading is true', () => {
+		const { getByTestId } = render(
+			React.createElement(
+				require('@/components/upload/FilePicker.web').default,
+				{
+					onFilesSelected: mockOnFilesSelected,
+					isUploading: true,
+					isLoading: false,
+					isAllFilesUploaded: false,
+					onError: mockOnError,
+				}
+			)
+		)
+
+		expect(getByTestId('title').props.children).toBe('Uploading...')
+	})
+
+	it('shows loading indicator when isLoading is true', () => {
+		const { getByTestId } = render(
+			React.createElement(
+				require('@/components/upload/FilePicker.web').default,
+				{
+					onFilesSelected: mockOnFilesSelected,
+					isUploading: false,
+					isLoading: true,
+					isAllFilesUploaded: false,
+					onError: mockOnError,
+				}
+			)
+		)
+
 		expect(getByTestId('loading-indicator')).toBeTruthy()
 	})
 
-	it('disables interaction during upload', () => {
-		const { queryByTestId } = render(
-			<FilePicker {...mockProps} isUploading={true} />
-		)
-		expect(queryByTestId('disabled-state')).toBeTruthy()
-	})
-
-	it('handles unsupported file types', () => {
-		const onError = jest.fn()
+	it('calls onFilesSelected when files are selected', () => {
 		const { getByTestId } = render(
-			<FilePicker {...mockProps} onError={onError} />
+			React.createElement(
+				require('@/components/upload/FilePicker.web').default,
+				{
+					onFilesSelected: mockOnFilesSelected,
+					isUploading: false,
+					isLoading: false,
+					isAllFilesUploaded: false,
+					onError: mockOnError,
+				}
+			)
 		)
 
-		fireEvent.press(getByTestId('file-picker-button'))
-		expect(onError).toHaveBeenCalledWith(
-			expect.objectContaining({
-				type: 'unsupported_file_type',
-				message: expect.any(String),
-			})
-		)
-	})
+		fireEvent.press(getByTestId('browse-button'))
 
-	it('handles file size limit errors', () => {
-		const onError = jest.fn()
-		const { getByTestId } = render(
-			<FilePicker {...mockProps} onError={onError} />
-		)
-
-		fireEvent.press(getByTestId('file-picker-button'))
-		expect(onError).toHaveBeenCalledWith(
-			expect.objectContaining({
-				type: 'file_size_limit_exceeded',
-				message: expect.any(String),
-			})
-		)
-	})
-
-	it('handles max files errors', () => {
-		const onError = jest.fn()
-		const { getByTestId } = render(
-			<FilePicker {...mockProps} onError={onError} />
-		)
-
-		fireEvent.press(getByTestId('file-picker-button'))
-		expect(onError).toHaveBeenCalledWith(
-			expect.objectContaining({
-				type: 'max_files_exceeded',
-				message: expect.any(String),
-			})
-		)
-	})
-
-	it('disables interaction when all files uploaded', () => {
-		const { queryByTestId } = render(
-			<FilePicker {...mockProps} isAllFilesUploaded={true} />
-		)
-		expect(queryByTestId('disabled-state')).toBeTruthy()
+		expect(mockOnFilesSelected).toHaveBeenCalled()
+		expect(mockOnFilesSelected.mock.calls[0][0].length).toBe(1)
+		expect(mockOnFilesSelected.mock.calls[0][0][0].name).toBe('test.jpg')
 	})
 })

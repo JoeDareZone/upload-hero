@@ -1,13 +1,48 @@
 import { UploadFile } from '@/types/fileType'
-import { createChunks } from '@/utils/chunkUtils'
 import { CHUNK_SIZE } from '@/utils/constants'
 
+// Mock the constants module before importing chunkUtils
 jest.mock('@/utils/constants', () => ({
 	IS_WEB: false,
-	CHUNK_SIZE: 1024 * 1024,
+	CHUNK_SIZE: 1024 * 1024, // 1MB
 }))
 
+// Now import chunkUtils after mocking the constants
+import { createChunks } from '@/utils/chunkUtils'
+
+// Setup for non-web tests
+const setupNonWebEnvironment = () => {
+	jest.resetModules()
+	jest.doMock('@/utils/constants', () => ({
+		IS_WEB: false,
+		CHUNK_SIZE: 1024 * 1024,
+	}))
+}
+
+// Setup for web tests
+const setupWebEnvironment = () => {
+	jest.resetModules()
+	jest.doMock('@/utils/constants', () => ({
+		IS_WEB: true,
+		CHUNK_SIZE: 1024 * 1024,
+	}))
+}
+
+// Declare additional globals for TypeScript
+declare global {
+	namespace NodeJS {
+		interface Global {
+			createChunks: typeof createChunks
+		}
+	}
+}
+
 describe('chunkUtils', () => {
+	// Set up non-web environment by default
+	beforeEach(() => {
+		jest.resetModules()
+	})
+
 	const mockFile: UploadFile = {
 		id: 'test-file-1',
 		name: 'test-file.jpg',
@@ -19,10 +54,10 @@ describe('chunkUtils', () => {
 		totalChunks: 5,
 	}
 
-	describe('createChunks', () => {
+	describe('createChunks in non-web environment', () => {
+		// Use the already imported createChunks for these tests
 		test('should create correct number of chunks', () => {
 			const chunks = createChunks(mockFile)
-
 			expect(chunks.length).toBe(5)
 		})
 
@@ -100,6 +135,83 @@ describe('chunkUtils', () => {
 			expect(chunks[2].isResume).toBe(false)
 			expect(chunks[3].isResume).toBe(false)
 			expect(chunks[4].isResume).toBe(false)
+		})
+	})
+
+	describe('createChunks in web environment', () => {
+		beforeEach(() => {
+			// Update mock to use web environment
+			jest.resetModules()
+			jest.mock('@/utils/constants', () => ({
+				IS_WEB: true,
+				CHUNK_SIZE: 1024 * 1024,
+			}))
+
+			// Re-import after mock reset
+			jest.resetModules()
+
+			// Mock URL.createObjectURL
+			global.URL.createObjectURL = jest.fn(() => 'blob:http://test-url')
+		})
+
+		test('should create blob URLs for web files', () => {
+			// Re-import chunkUtils to get the updated constants
+			const {
+				createChunks: webCreateChunks,
+			} = require('@/utils/chunkUtils')
+
+			const webFile: UploadFile = {
+				...mockFile,
+				file: new File(['test file content'], 'test-file.jpg', {
+					type: 'image/jpeg',
+				}),
+			}
+
+			const chunks = webCreateChunks(webFile)
+
+			expect(chunks.length).toBe(5)
+			expect(chunks[0].uri).toBe('blob:http://test-url')
+			expect(chunks[0].file).toBeInstanceOf(File)
+			expect(chunks[0].isResume).toBe(false)
+		})
+
+		test('should mark chunks as resume when file is not available in web', () => {
+			// Re-import chunkUtils to get the updated constants
+			const {
+				createChunks: webCreateChunks,
+			} = require('@/utils/chunkUtils')
+
+			const webFileWithoutBlob: UploadFile = {
+				...mockFile,
+				// No file property
+			}
+
+			const chunks = webCreateChunks(webFileWithoutBlob)
+
+			expect(chunks.length).toBe(5)
+			expect(chunks[0].isResume).toBe(true)
+		})
+
+		test('should handle resume with file instance in web', () => {
+			// Re-import chunkUtils to get the updated constants
+			const {
+				createChunks: webCreateChunks,
+			} = require('@/utils/chunkUtils')
+
+			const webFileWithResume: UploadFile = {
+				...mockFile,
+				uploadedChunks: 2,
+				file: new File(['test file content'], 'test-file.jpg', {
+					type: 'image/jpeg',
+				}),
+			}
+
+			const chunks = webCreateChunks(webFileWithResume)
+
+			expect(chunks.length).toBe(5)
+			expect(chunks[0].isResume).toBe(true)
+			expect(chunks[1].isResume).toBe(true)
+			expect(chunks[2].isResume).toBe(false)
 		})
 	})
 })

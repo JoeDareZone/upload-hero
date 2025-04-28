@@ -11,6 +11,7 @@ declare global {
 					name: string
 					size: number | string
 					color: string
+					onPress?: () => void
 				},
 				HTMLElement
 			>
@@ -38,11 +39,21 @@ jest.mock('@/components/ui/IconSymbol', () => ({
 		name,
 		size,
 		color,
+		onPress,
 	}: {
 		name: string
 		size: number | string
 		color: string
-	}) => <mock-icon-symbol name={name} size={size} color={color} />,
+		onPress?: () => void
+	}) => (
+		<mock-icon-symbol
+			name={name}
+			size={size}
+			color={color}
+			onPress={onPress}
+			data-testid={`icon-${name}`}
+		/>
+	),
 }))
 
 jest.mock('react-native-progress', () => ({
@@ -85,6 +96,11 @@ jest.mock('react-native', () => {
 		...rn,
 		Image: ({ source, ...props }: { source: any; [key: string]: any }) => (
 			<rn.View testID='image' source={source} {...props} />
+		),
+		TouchableOpacity: ({ onPress, children, ...props }: any) => (
+			<rn.View testID='touchable-opacity' onPress={onPress} {...props}>
+				{children}
+			</rn.View>
 		),
 	}
 })
@@ -198,5 +214,28 @@ describe('FileItem', () => {
 		expect(getByText('1.00 MB')).toBeTruthy()
 		expect(getByText('image/jpeg')).toBeTruthy()
 		expect(getByText('30%')).toBeTruthy()
+	})
+
+	test('handles retry action for error files', () => {
+		const mockRetry = jest.fn()
+		const { getByTestId } = render(
+			<FileItem
+				item={{
+					...mockFileError,
+					status: 'error',
+				}}
+				pauseUpload={mockPauseUpload}
+				resumeUpload={mockRetry}
+				cancelUpload={mockCancelUpload}
+			/>
+		)
+
+		// Find the error icon by testId
+		const errorIcon = getByTestId('icon-exclamationmark.triangle.fill')
+
+		// Directly trigger the onPress function
+		errorIcon.props.onPress()
+
+		expect(mockRetry).toHaveBeenCalledWith(mockFileError.id)
 	})
 })

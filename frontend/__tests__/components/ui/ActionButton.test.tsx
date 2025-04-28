@@ -100,4 +100,18 @@ describe('ActionButton', () => {
 		fireEvent.press(getByText('Upload'))
 		expect(mockOnPress).not.toHaveBeenCalled()
 	})
+
+	test('renders with onPress handler', () => {
+		const onPressMock = jest.fn()
+		const { getByText } = render(
+			<ActionButton
+				onPress={onPressMock}
+				disabled={false}
+				isLoading={false}
+				isUploading={false}
+			/>
+		)
+		fireEvent.press(getByText('Upload'))
+		expect(onPressMock).toHaveBeenCalled()
+	})
 })
