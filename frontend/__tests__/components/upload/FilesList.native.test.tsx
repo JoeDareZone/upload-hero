@@ -3,7 +3,6 @@ import { UploadFile } from '@/types/fileType'
 import { render } from '@testing-library/react-native'
 import React from 'react'
 
-// Custom element declarations
 declare global {
 	namespace JSX {
 		interface IntrinsicElements {

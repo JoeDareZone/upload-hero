@@ -3,8 +3,10 @@ import { render } from '@testing-library/react-native'
 import React from 'react'
 import { Platform } from 'react-native'
 
+const MockSymbolView = (props: any) => <mock-symbol-view {...props} />
+
 jest.mock('expo-symbols', () => ({
-	SymbolView: (props: any) => <mock-symbol-view {...props} />,
+	SymbolView: MockSymbolView,
 }))
 
 Platform.OS = 'ios'
@@ -33,7 +35,7 @@ describe('IconSymbol (iOS)', () => {
 			<IconSymbol name='pause' color='red' />
 		)
 
-		const icon = UNSAFE_getAllByType('mock-symbol-view')[0]
+		const icon = UNSAFE_getAllByType(MockSymbolView)[0]
 		expect(icon.props.name).toBe('pause')
 		expect(icon.props.tintColor).toBe('red')
 		expect(icon.props.weight).toBe('regular')
@@ -46,7 +48,7 @@ describe('IconSymbol (iOS)', () => {
 			<IconSymbol name='play' color='blue' size={32} />
 		)
 
-		const icon = UNSAFE_getAllByType('mock-symbol-view')[0]
+		const icon = UNSAFE_getAllByType(MockSymbolView)[0]
 		expect(icon.props.name).toBe('play')
 		expect(icon.props.style[0].width).toBe(32)
 		expect(icon.props.style[0].height).toBe(32)
@@ -57,7 +59,7 @@ describe('IconSymbol (iOS)', () => {
 			<IconSymbol name='trash' color='green' weight='bold' />
 		)
 
-		const icon = UNSAFE_getAllByType('mock-symbol-view')[0]
+		const icon = UNSAFE_getAllByType(MockSymbolView)[0]
 		expect(icon.props.weight).toBe('bold')
 	})
 
@@ -71,7 +73,7 @@ describe('IconSymbol (iOS)', () => {
 			/>
 		)
 
-		const icon = UNSAFE_getAllByType('mock-symbol-view')[0]
+		const icon = UNSAFE_getAllByType(MockSymbolView)[0]
 		expect(icon.props.style[1]).toBe(customStyle)
 	})
 
@@ -80,7 +82,7 @@ describe('IconSymbol (iOS)', () => {
 			<IconSymbol name='house.fill' color='black' />
 		)
 
-		const icon = UNSAFE_getAllByType('mock-symbol-view')[0]
+		const icon = UNSAFE_getAllByType(MockSymbolView)[0]
 		expect(icon.props.resizeMode).toBe('scaleAspectFit')
 	})
 })

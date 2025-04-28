@@ -1,6 +1,3 @@
-/**
- * Mock modules
- */
 jest.mock('react-native-css-interop', () => ({
 	withInterop: (component: any) => component,
 }))

@@ -2,7 +2,6 @@ import { useUploadActionSheet } from '@/components/upload/UploadActionSheet'
 import { renderHook } from '@testing-library/react'
 import { Platform } from 'react-native'
 
-// Custom element declarations
 declare global {
 	namespace JSX {
 		interface IntrinsicElements {

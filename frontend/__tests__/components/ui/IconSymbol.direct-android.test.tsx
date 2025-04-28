@@ -78,7 +78,19 @@ describe('IconSymbol (Android Implementation)', () => {
 	})
 
 	test('renders MaterialIcons with mapped icon names', () => {
-		const iconMappings: Record<IconSymbolName, string> = {
+		type TestIconName =
+			| 'house.fill'
+			| 'paperplane.fill'
+			| 'chevron.left.forwardslash.chevron.right'
+			| 'chevron.right'
+			| 'doc.badge.arrow.up.fill'
+			| 'pause'
+			| 'play'
+			| 'checkmark.circle.fill'
+			| 'exclamationmark.triangle.fill'
+			| 'trash'
+
+		const iconMappings: Record<TestIconName, string> = {
 			'house.fill': 'home',
 			'paperplane.fill': 'send',
 			'chevron.left.forwardslash.chevron.right': 'code',
