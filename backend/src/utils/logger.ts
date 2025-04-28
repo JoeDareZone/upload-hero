@@ -75,7 +75,7 @@ export const logRequest = (req: Request, res: Response, next: NextFunction) => {
 		url: req.url,
 		ip: req.ip || req.socket.remoteAddress,
 		userAgent: req.headers['user-agent'],
-		userId: req.body.userId || 'anonymous',
+		userId: req.body?.userId || 'anonymous',
 		operationType: getOperationType(req),
 	}
 

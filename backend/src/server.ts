@@ -14,7 +14,6 @@ fs.mkdirSync(FINAL_DIR, { recursive: true })
 
 app.use(cors())
 app.use(express.json())
-
 app.use(logRequest)
 
 app.use('/', uploadRoutes)

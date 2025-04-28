@@ -114,9 +114,6 @@ export const uploadChunk = async (chunk: UploadChunk) => {
 					}
 
 					const length = chunk.end - chunk.start
-					console.log(
-						`Reading ${length} bytes from ${chunk.uri} at position ${chunk.start}`
-					)
 
 					const options = {
 						encoding: FileSystem.EncodingType.Base64,
