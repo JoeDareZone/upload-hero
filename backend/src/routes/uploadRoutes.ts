@@ -8,6 +8,7 @@ import { UPLOAD_DIR } from '../constants'
 import { reassembleFile } from '../controllers/finalizeUpload'
 import { findFileByChecksum, storeFileChecksum } from '../models/FileChecksum'
 import redisService from '../services/redisService'
+import logger from '../utils/logger'
 
 const router = Router()
 const upload = multer({ dest: 'uploads/' })
@@ -71,7 +72,7 @@ export const initiateUploadHandler = async (req: Request, res: Response) => {
 			message: 'Upload initialized successfully',
 		})
 	} catch (err) {
-		console.error('Error in initiate-upload:', err)
+		logger.error(`Error in initiate-upload: ${err}`)
 		return res.status(500).json({
 			success: false,
 			message: err instanceof Error ? err.message : 'Unknown error',
@@ -156,7 +157,7 @@ export const uploadStatusHandler = async (req: Request, res: Response) => {
 			chunkIndices: fsChunkIndices,
 		})
 	} catch (err) {
-		console.error('Error in upload-status:', err)
+		logger.error(`Error in upload-status: ${err}`)
 		return res.status(500).json({
 			success: false,
 			message: err instanceof Error ? err.message : 'Unknown error',
@@ -225,7 +226,7 @@ export const uploadChunkHandler = async (req: Request, res: Response) => {
 					await fs.writeJSON(metadataPath, fsMetadata)
 				}
 			} catch (error) {
-				console.error('Error updating metadata:', error)
+				logger.error('Error updating metadata:')
 			}
 		}
 
@@ -234,7 +235,7 @@ export const uploadChunkHandler = async (req: Request, res: Response) => {
 			message: `Chunk ${chunkIndex} received.`,
 		})
 	} catch (error) {
-		console.error('Error uploading chunk:', error)
+		logger.error(`Error uploading chunk: ${error}`)
 		res.status(500).json({
 			success: false,
 			message: error instanceof Error ? error.message : 'Unknown error',
@@ -299,7 +300,7 @@ export const finalizeUploadHandler = async (req: Request, res: Response) => {
 							await fs.writeJSON(metadataPath, metadata)
 						}
 					} catch (error) {
-						console.error('Error updating metadata:', error)
+						logger.error('Error updating metadata:')
 					}
 				}
 			}
@@ -337,7 +338,7 @@ export const finalizeUploadHandler = async (req: Request, res: Response) => {
 		})
 	} catch (err) {
 		metrics.failedUploads++
-		console.error('Error in finalize-upload:', err)
+		logger.error(`Error in finalize-upload: ${err}`)
 		return res.status(500).json({
 			success: false,
 			message: err instanceof Error ? err.message : 'Unknown error',
@@ -374,7 +375,7 @@ export const deleteUploadHandler = async (req: Request, res: Response) => {
 			message: 'Upload deleted successfully',
 		})
 	} catch (err) {
-		console.error('Error deleting upload:', err)
+		logger.error(`Error deleting upload: ${err}`)
 		return res.status(500).json({
 			success: false,
 			message: err instanceof Error ? err.message : 'Unknown error',

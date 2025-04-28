@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "/Users/joe/Coding/upload-hero2/backend/logs/audit/.b05bb35da0ec2c9180970a803879cf857cd6c3a3-audit.json",
+    "files": [
+        {
+            "date": 1745829018288,
+            "name": "/Users/joe/Coding/upload-hero2/backend/logs/audit/audit-2025-04-28.log",
+            "hash": "d7bf39a80a0a613b0ce141abb54239c70ad8acc53c92fc1854bb5a3c2a0a4147"
+        }
+    ],
+    "hashType": "sha256"
+}
