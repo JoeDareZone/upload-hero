@@ -121,7 +121,6 @@ describe('IconSymbol (Android Implementation)', () => {
 	})
 
 	test('returns null for unknown icon name', () => {
-		// @ts-ignore - intentionally testing invalid name
 		const result = IconSymbol({ name: 'nonexistent', color: 'blue' })
 		expect(result).toBeNull()
 		expect(mockMaterialIcons).not.toHaveBeenCalled()

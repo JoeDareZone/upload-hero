@@ -15,7 +15,6 @@ const mockFs = fs as jest.Mocked<typeof fs>
 jest.mock('path')
 const mockPath = path as jest.Mocked<typeof path>
 
-// Mock logger
 jest.mock('../utils/logger', () => ({
 	error: jest.fn(),
 	info: jest.fn(),

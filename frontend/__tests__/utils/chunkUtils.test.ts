@@ -3,7 +3,7 @@ import { CHUNK_SIZE } from '@/utils/constants'
 
 jest.mock('@/utils/constants', () => ({
 	IS_WEB: false,
-	CHUNK_SIZE: 1024 * 1024, // 1MB
+	CHUNK_SIZE: 1024 * 1024,
 }))
 
 import { createChunks } from '@/utils/chunkUtils'

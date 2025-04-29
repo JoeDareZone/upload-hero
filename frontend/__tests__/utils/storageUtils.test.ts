@@ -107,8 +107,22 @@ describe('storageUtils', () => {
 			)
 		})
 
-		test.skip('saveToUploadHistory should handle error in setItem', async () => {
-			expect(true).toBe(true)
+		test('saveToUploadHistory should handle error in setItem', async () => {
+			const getItemSpy = jest.spyOn(AsyncStorage, 'getItem')
+			const setItemSpy = jest.spyOn(AsyncStorage, 'setItem')
+
+			getItemSpy.mockResolvedValueOnce(JSON.stringify([]))
+
+			setItemSpy.mockRejectedValueOnce(new Error('Test setItem error'))
+
+			saveToUploadHistory(testUploadFile)
+
+			await new Promise(resolve => setTimeout(resolve, 10))
+
+			expect(console.error).toHaveBeenCalledWith(
+				'Error saving to upload history:',
+				expect.any(Error)
+			)
 		})
 
 		test('saveToUploadHistory should handle invalid JSON error', async () => {

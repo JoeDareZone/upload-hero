@@ -3,7 +3,6 @@ import { SymbolWeight } from 'expo-symbols'
 import React from 'react'
 import { OpaqueColorValue, StyleProp, TextStyle } from 'react-native'
 
-// Icon name mapping from SF Symbols to Material Icons
 export const MAPPING = {
 	'house.fill': 'home',
 	'paperplane.fill': 'send',

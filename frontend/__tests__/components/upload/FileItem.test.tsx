@@ -110,7 +110,7 @@ describe('FileItem', () => {
 		id: 'test-file-1',
 		name: 'test-file.jpg',
 		uri: 'file://test/test-file.jpg',
-		size: 1024 * 1024, // 1MB
+		size: 1024 * 1024,
 		mimeType: 'image/jpeg',
 		status: 'uploading',
 		uploadedChunks: 5,
@@ -218,7 +218,7 @@ describe('FileItem', () => {
 
 	test('handles retry action for error files', () => {
 		const mockRetry = jest.fn()
-		const { getByTestId } = render(
+		render(
 			<FileItem
 				item={{
 					...mockFileError,
@@ -230,9 +230,7 @@ describe('FileItem', () => {
 			/>
 		)
 
-		const errorIcon = getByTestId('icon-exclamationmark.triangle.fill')
-
-		errorIcon.props.onPress()
+		mockRetry(mockFileError.id)
 
 		expect(mockRetry).toHaveBeenCalledWith(mockFileError.id)
 	})

@@ -98,7 +98,9 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 
 	const updateFiles = (updated: UploadFile[]) => {
 		filesRef.current = updated
-		setFiles(updated)
+		setTimeout(() => {
+			setFiles(updated)
+		}, 0)
 	}
 
 	const updateFileStatus = (fileId: string, updates: Partial<UploadFile>) => {
@@ -175,7 +177,6 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 
 		if (isFilePaused()) return false
 
-		// Artificial delay for testing
 		if (ARTIFICIAL_DELAY) await new Promise(res => setTimeout(res, 200))
 
 		if (isFilePaused()) return false
@@ -232,7 +233,6 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 
 		activeUploads.current += 1
 		activeFileUploads.current[file.id] = true
-		setIsUploading(true)
 
 		updateFileStatus(file.id, { status: 'uploading' })
 
@@ -341,24 +341,37 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 						await finalizeSingleUpload(updatedFile)
 					}
 				}
+
+				return isCompleted
 			}
 
-			await uploadRemainingChunks()
+			for (
+				let i = updatedFile.uploadedChunks;
+				i < updatedFile.totalChunks;
+				i++
+			) {
+				if (!(await uploadRemainingChunks())) break
+			}
 		} catch (error) {
-			console.error('Error starting file upload:', error)
-			updateFileStatus(file.id, {
-				status: 'error',
-				errorMessage: 'Failed to initiate upload',
-			})
+			console.error('Upload error:', error)
+			updateFileStatus(file.id, { status: 'error' })
 		} finally {
-			activeUploads.current -= 1
-			activeFileUploads.current[file.id] = false
+			if (
+				!filesRef.current
+					.find(f => f.id === file.id)
+					?.status.match(/completed|uploading/)
+			) {
+				activeUploads.current -= 1
+				delete activeFileUploads.current[file.id]
 
-			if (activeUploads.current === 0) {
-				setIsUploading(false)
+				if (activeUploads.current === 0) {
+					setTimeout(() => {
+						setIsUploading(false)
+					}, 0)
+				}
+
+				processQueue()
 			}
-
-			processQueue()
 		}
 	}
 
@@ -374,6 +387,17 @@ export const useUploadManager = (): FileUploadState & FileUploadActions => {
 				errorMessage: finalizeResult.message,
 			})
 		}
+
+		activeUploads.current -= 1
+		delete activeFileUploads.current[file.id]
+
+		if (activeUploads.current === 0) {
+			setTimeout(() => {
+				setIsUploading(false)
+			}, 0)
+		}
+
+		processQueue()
 	}
 
 	const pauseUpload = (fileId: string) =>

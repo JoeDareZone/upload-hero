@@ -14,5 +14,9 @@ export interface FilePickerProps {
 }
 
 export default function FilePicker(props: FilePickerProps) {
-	return IS_WEB ? <WebPicker {...props} /> : <NativePicker {...props} />
+	return IS_WEB ? (
+		<WebPicker data-testid='web-picker' {...props} />
+	) : (
+		<NativePicker data-testid='native-picker' {...props} />
+	)
 }

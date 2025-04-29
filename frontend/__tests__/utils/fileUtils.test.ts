@@ -8,7 +8,7 @@ import * as ImagePicker from 'expo-image-picker'
 import * as VideoThumbnails from 'expo-video-thumbnails'
 
 jest.mock('@/utils/constants', () => ({
-	MAX_FILE_SIZE_BYTES: 10 * 1024 * 1024, // 10MB
+	MAX_FILE_SIZE_BYTES: 10 * 1024 * 1024,
 	MAX_FILE_SIZE_MB: 10,
 }))
 
@@ -43,7 +43,7 @@ describe('fileUtils', () => {
 					uri: 'file://valid-image.jpg',
 					name: 'valid-image.jpg',
 					mimeType: 'image/jpeg',
-					size: 5 * 1024 * 1024, // 5MB
+					size: 5 * 1024 * 1024,
 				},
 			] as DocumentPicker.DocumentPickerAsset[]
 
@@ -66,7 +66,7 @@ describe('fileUtils', () => {
 				uri: 'file://valid-video.mp4',
 				name: 'valid-video.mp4',
 				mimeType: 'video/mp4',
-				size: 5 * 1024 * 1024, // 5MB
+				size: 5 * 1024 * 1024,
 			} as DocumentPicker.DocumentPickerAsset
 
 			const mockThumbnailUri = 'file://thumbnail.jpg'
@@ -101,7 +101,7 @@ describe('fileUtils', () => {
 				uri: 'file://valid-video.mp4',
 				name: 'valid-video.mp4',
 				mimeType: 'video/mp4',
-				size: 5 * 1024 * 1024, // 5MB
+				size: 5 * 1024 * 1024,
 			} as DocumentPicker.DocumentPickerAsset
 
 			const mockError = new Error('Thumbnail generation failed')
@@ -175,7 +175,7 @@ describe('fileUtils', () => {
 					uri: 'file://valid-image.jpg',
 					name: 'valid-image.jpg',
 					mimeType: 'image/jpeg',
-					size: 5 * 1024 * 1024, // 5MB
+					size: 5 * 1024 * 1024,
 				},
 				{
 					uri: 'file://large-image.jpg',

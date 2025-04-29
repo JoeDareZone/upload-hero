@@ -3,15 +3,42 @@ import { UploadFile } from '@/types/fileType'
 import { render } from '@testing-library/react-native'
 import React from 'react'
 
-// Mock the FileItem component
+declare global {
+	namespace JSX {
+		interface IntrinsicElements {
+			'mock-file-item-web': React.DetailedHTMLProps<
+				React.HTMLAttributes<HTMLElement> & {
+					name: string
+					id: string
+					pause: () => void
+					resume: () => void
+					cancel: () => void
+					'data-item': string
+				},
+				HTMLElement
+			>
+		}
+	}
+}
+
 jest.mock('@/components/upload/FileItem', () => ({
-	FileItem: ({ item, pauseUpload, resumeUpload, cancelUpload }) => (
-		<mock-file-item
-			testID={`file-item-${item.id}`}
+	FileItem: ({
+		item,
+		pauseUpload,
+		resumeUpload,
+		cancelUpload,
+	}: {
+		item: { name: string; id: string }
+		pauseUpload: () => void
+		resumeUpload: () => void
+		cancelUpload: () => void
+	}) => (
+		<mock-file-item-web
 			name={item.name}
-			pauseUpload={pauseUpload}
-			resumeUpload={resumeUpload}
-			cancelUpload={cancelUpload}
+			id={item.id}
+			pause={pauseUpload}
+			resume={resumeUpload}
+			cancel={cancelUpload}
 			data-item={JSON.stringify(item)}
 		/>
 	),
@@ -49,8 +76,10 @@ describe('WebFilesList', () => {
 		jest.clearAllMocks()
 	})
 
+	const MockFileItem = 'mock-file-item-web' as any
+
 	test('renders a list of files', () => {
-		const { getAllByTestId } = render(
+		const { UNSAFE_getAllByType } = render(
 			<WebFilesList
 				files={mockFiles}
 				pauseUpload={mockPauseUpload}
@@ -59,7 +88,7 @@ describe('WebFilesList', () => {
 			/>
 		)
 
-		const fileItems = getAllByTestId(/^file-item-/)
+		const fileItems = UNSAFE_getAllByType(MockFileItem)
 		expect(fileItems).toHaveLength(2)
 		expect(fileItems[0].props['data-item']).toContain('test-file-1.jpg')
 		expect(fileItems[1].props['data-item']).toContain('test-file-2.jpg')
@@ -79,7 +108,7 @@ describe('WebFilesList', () => {
 	})
 
 	test('passes correct props to FileItem components', () => {
-		const { getByTestId } = render(
+		const { UNSAFE_getAllByType } = render(
 			<WebFilesList
 				files={[mockFiles[0]]}
 				pauseUpload={mockPauseUpload}
@@ -88,10 +117,10 @@ describe('WebFilesList', () => {
 			/>
 		)
 
-		const fileItem = getByTestId(`file-item-${mockFiles[0].id}`)
-		expect(fileItem.props.pauseUpload).toBe(mockPauseUpload)
-		expect(fileItem.props.resumeUpload).toBe(mockResumeUpload)
-		expect(fileItem.props.cancelUpload).toBe(mockCancelUpload)
+		const fileItem = UNSAFE_getAllByType(MockFileItem)[0]
+		expect(fileItem.props.pause).toBe(mockPauseUpload)
+		expect(fileItem.props.resume).toBe(mockResumeUpload)
+		expect(fileItem.props.cancel).toBe(mockCancelUpload)
 		expect(fileItem.props.name).toBe(mockFiles[0].name)
 	})
 })

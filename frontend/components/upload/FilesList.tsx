@@ -12,5 +12,9 @@ export interface FilesListProps {
 }
 
 export default function FilesList(props: FilesListProps) {
-	return IS_WEB ? <WebFilesList {...props} /> : <NativeFilesList {...props} />
+	return IS_WEB ? (
+		<WebFilesList data-testid='web-files-list' {...props} />
+	) : (
+		<NativeFilesList data-testid='native-files-list' {...props} />
+	)
 }

@@ -12,7 +12,7 @@ import {
 import { act, renderHook } from '@testing-library/react'
 
 jest.mock('@/utils/constants', () => ({
-	CHUNK_SIZE: 1024 * 1024, // 1MB
+	CHUNK_SIZE: 1024 * 1024,
 	MAX_FILES: 5,
 }))
 
@@ -30,7 +30,7 @@ describe('createUploadFile', () => {
 	test('creates new upload file with generated ID', () => {
 		const mockFile = {
 			name: 'test.jpg',
-			size: 2 * 1024 * 1024, // 2MB
+			size: 2 * 1024 * 1024,
 			type: 'image/jpeg',
 			uri: 'file://test.jpg',
 		}
@@ -41,7 +41,7 @@ describe('createUploadFile', () => {
 			...mockFile,
 			id: 'test-file-id',
 			status: 'queued',
-			totalChunks: 2, // 2MB / 1MB
+			totalChunks: 2,
 			uploadedChunks: 0,
 		})
 	})
@@ -68,14 +68,14 @@ describe('createUploadFile', () => {
 	test('calculates total chunks correctly for partial chunks', () => {
 		const mockFile = {
 			name: 'test.jpg',
-			size: 1.5 * 1024 * 1024, // 1.5MB
+			size: 1.5 * 1024 * 1024,
 			type: 'image/jpeg',
 			uri: 'file://test.jpg',
 		}
 
 		const result = createUploadFile(mockFile)
 
-		expect(result.totalChunks).toBe(2) // Ceiling of 1.5
+		expect(result.totalChunks).toBe(2)
 	})
 })
 
@@ -95,7 +95,7 @@ describe('useFileSelection', () => {
 		expect(result.current.isLoading).toBe(false)
 	})
 
-	test('clearErrors clears the error array', () => {
+	test('clearErrors clears the error array', async () => {
 		const { result } = renderHook(() =>
 			useFileSelection(mockEnqueueFile, false)
 		)
@@ -107,8 +107,11 @@ describe('useFileSelection', () => {
 			result.current.handlePickDocuments()
 		})
 
-		act(() => {
+		await new Promise(resolve => setTimeout(resolve, 0))
+
+		await act(async () => {
 			result.current.clearErrors()
+			await new Promise(resolve => setTimeout(resolve, 0))
 		})
 
 		expect(result.current.errors).toEqual([])
@@ -337,7 +340,7 @@ describe('calculateUploadStats', () => {
 			hasErrorFiles: true,
 			totalUploadedChunks: 4,
 			totalChunks: 8,
-			overallUploadProgress: 0.5, // 4/8
+			overallUploadProgress: 0.5,
 			isAllFilesUploaded: false,
 		})
 	})

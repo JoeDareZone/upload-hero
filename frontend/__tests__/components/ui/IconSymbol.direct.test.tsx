@@ -101,7 +101,6 @@ describe('IconSymbol', () => {
 	})
 
 	it('returns null for non-existent icon', () => {
-		// @ts-ignore - intentionally testing invalid icon name
 		const { queryByTestId } = render(
 			<IconSymbol name='non-existent' color='red' />
 		)

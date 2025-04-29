@@ -39,7 +39,12 @@ export const saveToUploadHistory = (file: UploadFile): void => {
 					history.unshift(fileWithTimestamp)
 					const limitedHistory = history.slice(0, 100)
 
-					setItem(UPLOAD_HISTORY_KEY, JSON.stringify(limitedHistory))
+					setItem(
+						UPLOAD_HISTORY_KEY,
+						JSON.stringify(limitedHistory)
+					).catch(error => {
+						console.error('Error saving to upload history:', error)
+					})
 				}
 			})
 			.catch(error =>
